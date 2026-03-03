@@ -1,0 +1,29 @@
+@import './fonts.css';
+@import './tailwind.css';
+@import './theme.css';
+
+/* Mobile viewport and safe areas */
+@layer base {
+  body {
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Ensure mobile-optimized max-width containers are centered */
+  .max-w-md {
+    max-width: 448px;
+  }
+
+  /* Safe area bottom padding for mobile devices */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Prevent text selection on buttons and interactive elements */
+  button {
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+}
