@@ -6,11 +6,23 @@ import 'screens/home_screen.dart';
 import 'screens/ai_tutor_screen.dart';
 import 'screens/skill_exchange_screen.dart';
 import 'screens/explore_screen.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'firebase_options.dart';
 import 'screens/messages_screen.dart';
 import 'screens/chat_detail_screen.dart';
 import 'screens/profile_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  try {
+    // Initialize Firebase properly using the CLI-generated options
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    debugPrint('Firebase initialization failed: $e');
+  }
   runApp(const SkillSwapApp());
 }
 
@@ -23,8 +35,9 @@ class SkillSwapApp extends StatelessWidget {
       title: 'SkillSwap',
       debugShowCheckedModeBanner: false,
       theme: SkillSwapTheme.light,
-      initialRoute: '/onboarding',
+      initialRoute: '/',
       routes: {
+        '/': (context) => const AuthWrapper(),
         '/onboarding': (context) => const OnboardingScreen(),
         '/login': (context) => const LoginScreen(),
         '/home': (context) => const HomeScreen(),
@@ -34,6 +47,57 @@ class SkillSwapApp extends StatelessWidget {
         '/messages': (context) => const MessagesScreen(),
         '/chat-detail': (context) => const ChatDetailScreen(),
         '/profile': (context) => const ProfileScreen(),
+      },
+    );
+  }
+}
+
+class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    if (Firebase.apps.isEmpty) {
+      return Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 60, color: Colors.orange),
+                const SizedBox(height: 16),
+                const Text(
+                  'Firebase Configuration Missing',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'The app cannot authenticate right now.\nPlease execute `flutterfire configure` in your terminal to set up a real Server / Database.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 32),
+                ElevatedButton(
+                  onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
+                  child: const Text('Proceed to Login UI anyway'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
+        if (snapshot.hasData) {
+          return const HomeScreen();
+        }
+        return const LoginScreen();
       },
     );
   }

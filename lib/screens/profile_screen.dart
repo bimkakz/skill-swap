@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../widgets/bottom_nav_bar.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -192,7 +193,12 @@ class ProfileScreen extends StatelessWidget {
           _buildMenuItem(Icons.edit, 'Edit Profile'),
           _buildMenuItem(Icons.repeat, 'My Exchanges'),
           _buildMenuItem(Icons.school, 'My Lessons'),
-          _buildMenuItem(Icons.logout, 'Log Out', isLast: true, color: Colors.red, onTap: () => Navigator.pushReplacementNamed(context, '/login')),
+          _buildMenuItem(Icons.logout, 'Log Out', isLast: true, color: Colors.red, onTap: () async {
+            await FirebaseAuth.instance.signOut();
+            if (context.mounted) {
+              Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+            }
+          }),
         ],
       ),
     );

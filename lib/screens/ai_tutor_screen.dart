@@ -10,7 +10,11 @@ class AITutorScreen extends StatefulWidget {
 
 class _AITutorScreenState extends State<AITutorScreen> {
   final List<Map<String, String>> _messages = [
-    {'type': 'ai', 'text': "Hi! I'm your AI tutor. I'm here to help you learn anything you'd like. What would you like to explore today?"}
+    {
+      'type': 'ai',
+      'text':
+          "Hi! I'm your AI tutor. I'm here to help you learn anything you'd like. What would you like to explore today?"
+    }
   ];
   final TextEditingController _controller = TextEditingController();
 
@@ -20,11 +24,15 @@ class _AITutorScreenState extends State<AITutorScreen> {
       _messages.add({'type': 'user', 'text': _controller.text});
       _controller.clear();
     });
-    
+
     Future.delayed(const Duration(seconds: 1), () {
       if (mounted) {
         setState(() {
-          _messages.add({'type': 'ai', 'text': "That's a great question! Let me help you understand that better. I can create a personalized lesson plan for you."});
+          _messages.add({
+            'type': 'ai',
+            'text':
+                "That's a great question! Let me help you understand that better. I can create a personalized lesson plan for you."
+          });
         });
       }
     });
@@ -37,7 +45,8 @@ class _AITutorScreenState extends State<AITutorScreen> {
         title: const Text('AI Tutor', style: TextStyle(color: Colors.white)),
         flexibleSpace: Container(
           decoration: const BoxDecoration(
-            gradient: LinearGradient(colors: [SkillSwapColors.accent, Color(0xFF0891B2)]),
+            gradient: LinearGradient(
+                colors: [SkillSwapColors.accent, Color(0xFF0891B2)]),
             borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
           ),
         ),
@@ -78,10 +87,12 @@ class _AITutorScreenState extends State<AITutorScreen> {
                 final msg = _messages[index];
                 final isUser = msg['type'] == 'user';
                 return Align(
-                  alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                  alignment:
+                      isUser ? Alignment.centerRight : Alignment.centerLeft,
                   child: Container(
                     margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
                       color: isUser ? SkillSwapColors.primary : Colors.white,
                       borderRadius: BorderRadius.only(
@@ -90,22 +101,37 @@ class _AITutorScreenState extends State<AITutorScreen> {
                         bottomLeft: Radius.circular(isUser ? 20 : 0),
                         bottomRight: Radius.circular(isUser ? 0 : 20),
                       ),
-                      boxShadow: [const BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+                      boxShadow: const [
+                        BoxShadow(
+                            color: Colors.black12,
+                            blurRadius: 4,
+                            offset: Offset(0, 2))
+                      ],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (!isUser) const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.auto_awesome, size: 12, color: SkillSwapColors.accent),
-                            SizedBox(width: 4),
-                            Text('AI Tutor', style: TextStyle(fontSize: 10, color: SkillSwapColors.accent, fontWeight: FontWeight.bold)),
-                          ],
-                        ),
+                        if (!isUser)
+                          const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.auto_awesome,
+                                  size: 12, color: SkillSwapColors.accent),
+                              SizedBox(width: 4),
+                              Text('AI Tutor',
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      color: SkillSwapColors.accent,
+                                      fontWeight: FontWeight.bold)),
+                            ],
+                          ),
                         Text(
                           msg['text']!,
-                          style: TextStyle(color: isUser ? Colors.white : SkillSwapColors.textHeader, fontSize: 14),
+                          style: TextStyle(
+                              color: isUser
+                                  ? Colors.white
+                                  : SkillSwapColors.textHeader,
+                              fontSize: 14),
                         ),
                       ],
                     ),
@@ -129,8 +155,11 @@ class _AITutorScreenState extends State<AITutorScreen> {
                       hintText: 'Ask anything...',
                       filled: true,
                       fillColor: Colors.grey.shade100,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide.none),
+                      contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 20),
                     ),
                     onSubmitted: (_) => _sendMessage(),
                   ),
@@ -143,9 +172,11 @@ class _AITutorScreenState extends State<AITutorScreen> {
                     height: 48,
                     decoration: const BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: LinearGradient(colors: [SkillSwapColors.accent, Color(0xFF0891B2)]),
+                      gradient: LinearGradient(
+                          colors: [SkillSwapColors.accent, Color(0xFF0891B2)]),
                     ),
-                    child: const Icon(Icons.send, color: Colors.white, size: 20),
+                    child:
+                        const Icon(Icons.send, color: Colors.white, size: 20),
                   ),
                 ),
               ],

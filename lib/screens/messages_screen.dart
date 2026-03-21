@@ -8,7 +8,8 @@ class MessagesScreen extends StatelessWidget {
   final List<Map<String, dynamic>> conversations = const [
     {
       'name': 'Maria Garcia',
-      'image': 'https://images.unsplash.com/photo-1770564512654-35be546ed257?q=80&w=200',
+      'image':
+          'https://images.unsplash.com/photo-1770564512654-35be546ed257?q=80&w=200',
       'lastMessage': "Great! Let's start next week then.",
       'time': '2m ago',
       'unread': 2,
@@ -16,7 +17,8 @@ class MessagesScreen extends StatelessWidget {
     },
     {
       'name': 'David Kim',
-      'image': 'https://images.unsplash.com/photo-1764816657425-b3c79b616d14?q=80&w=200',
+      'image':
+          'https://images.unsplash.com/photo-1764816657425-b3c79b616d14?q=80&w=200',
       'lastMessage': 'Thanks for the piano lesson!',
       'time': '1h ago',
       'unread': 0,
@@ -24,7 +26,8 @@ class MessagesScreen extends StatelessWidget {
     },
     {
       'name': 'Sophie Laurent',
-      'image': 'https://images.unsplash.com/photo-1623594675959-02360202d4d6?q=80&w=200',
+      'image':
+          'https://images.unsplash.com/photo-1623594675959-02360202d4d6?q=80&w=200',
       'lastMessage': 'Can we reschedule to tomorrow?',
       'time': '3h ago',
       'unread': 1,
@@ -61,12 +64,15 @@ class MessagesScreen extends StatelessWidget {
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+        boxShadow: [
+          BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Messages', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+          const Text('Messages',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
           const SizedBox(height: 24),
           TextField(
             decoration: InputDecoration(
@@ -74,7 +80,9 @@ class MessagesScreen extends StatelessWidget {
               prefixIcon: const Icon(Icons.search, color: Colors.grey),
               filled: true,
               fillColor: Colors.grey.shade100,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none),
               contentPadding: const EdgeInsets.symmetric(vertical: 16),
             ),
           ),
@@ -83,7 +91,8 @@ class MessagesScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildConversationItem(Map<String, dynamic> convo, BuildContext context) {
+  Widget _buildConversationItem(
+      Map<String, dynamic> convo, BuildContext context) {
     return GestureDetector(
       onTap: () => Navigator.pushNamed(context, '/chat-detail'),
       child: Container(
@@ -92,13 +101,17 @@ class MessagesScreen extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: [const BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+          boxShadow: const [
+            BoxShadow(
+                color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))
+          ],
         ),
         child: Row(
           children: [
             Stack(
               children: [
-                CircleAvatar(backgroundImage: NetworkImage(convo['image']), radius: 28),
+                CircleAvatar(
+                    backgroundImage: NetworkImage(convo['image']), radius: 28),
                 if (convo['online'])
                   Positioned(
                     right: 0,
@@ -106,7 +119,10 @@ class MessagesScreen extends StatelessWidget {
                     child: Container(
                       width: 14,
                       height: 14,
-                      decoration: BoxDecoration(color: Colors.green, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
+                      decoration: BoxDecoration(
+                          color: Colors.green,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2)),
                     ),
                   ),
               ],
@@ -119,20 +135,34 @@ class MessagesScreen extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(convo['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      Text(convo['time'], style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                      Text(convo['name'],
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16)),
+                      Text(convo['time'],
+                          style: const TextStyle(
+                              color: Colors.grey, fontSize: 12)),
                     ],
                   ),
                   const SizedBox(height: 4),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Expanded(child: Text(convo['lastMessage'], style: TextStyle(color: Colors.grey.shade600, fontSize: 14), overflow: TextOverflow.ellipsis)),
+                      Expanded(
+                          child: Text(convo['lastMessage'],
+                              style: TextStyle(
+                                  color: Colors.grey.shade600, fontSize: 14),
+                              overflow: TextOverflow.ellipsis)),
                       if (convo['unread'] > 0)
                         Container(
                           padding: const EdgeInsets.all(6),
-                          decoration: const BoxDecoration(color: SkillSwapColors.primary, shape: BoxShape.circle),
-                          child: Text(convo['unread'].toString(), style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                          decoration: const BoxDecoration(
+                              color: SkillSwapColors.primary,
+                              shape: BoxShape.circle),
+                          child: Text(convo['unread'].toString(),
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold)),
                         ),
                     ],
                   ),
