@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../widgets/bottom_nav_bar.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -11,7 +13,7 @@ class HomeScreen extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(),
+            _buildHeaderStream(),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -98,14 +100,30 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeaderStream() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return _buildHeader('User', 0);
+    
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return _buildHeader(user.displayName ?? 'User', 0);
+        final data = snapshot.data!.data() as Map<String, dynamic>? ?? {};
+        final points = data['points'] is int ? data['points'] as int : int.tryParse(data['points']?.toString() ?? '0') ?? 0;
+        final name = data['name']?.toString() ?? user.displayName ?? 'User';
+        return _buildHeader(name, points);
+      },
+    );
+  }
+
+  Widget _buildHeader(String userName, int points) {
     return Container(
       padding: const EdgeInsets.only(left: 24, right: 24, bottom: 24),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(32)),
         boxShadow: [
-          BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))
+          BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 2))
         ],
       ),
       child: Column(
@@ -116,14 +134,13 @@ class HomeScreen extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Hello, Alex 👋',
-                      style:
-                          TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                  Text('Hello, $userName 👋',
+                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                   Text('What would you like to learn today?',
-                      style: TextStyle(color: Colors.grey.shade600)),
+                      style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7))),
                 ],
               ),
-              _buildPointsBadge(1250),
+              _buildPointsBadge(points),
             ],
           ),
           const SizedBox(height: 24),
@@ -132,7 +149,7 @@ class HomeScreen extends StatelessWidget {
               hintText: 'Search skills or teachers...',
               prefixIcon: const Icon(Icons.search, color: Colors.grey),
               filled: true,
-              fillColor: Colors.grey.shade100,
+              fillColor: Theme.of(context).brightness == Brightness.dark ? Colors.white10 : Colors.grey.shade100,
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide.none),
@@ -236,10 +253,10 @@ class HomeScreen extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
-          BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 2))
         ],
       ),
       child: Row(

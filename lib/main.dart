@@ -13,6 +13,8 @@ import 'screens/messages_screen.dart';
 import 'screens/chat_detail_screen.dart';
 import 'screens/profile_screen.dart';
 
+final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
@@ -31,22 +33,28 @@ class SkillSwapApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'SkillSwap',
-      debugShowCheckedModeBanner: false,
-      theme: SkillSwapTheme.light,
-      initialRoute: '/',
-      routes: {
-        '/': (context) => const AuthWrapper(),
-        '/onboarding': (context) => const OnboardingScreen(),
-        '/login': (context) => const LoginScreen(),
-        '/home': (context) => const HomeScreen(),
-        '/ai-tutor': (context) => const AITutorScreen(),
-        '/skill-exchange': (context) => const SkillExchangeScreen(),
-        '/explore': (context) => const ExploreScreen(),
-        '/messages': (context) => const MessagesScreen(),
-        '/chat-detail': (context) => const ChatDetailScreen(),
-        '/profile': (context) => const ProfileScreen(),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeNotifier,
+      builder: (_, ThemeMode currentMode, __) {
+        return MaterialApp(
+          title: 'SkillSwap',
+          debugShowCheckedModeBanner: false,
+          theme: SkillSwapTheme.light,
+          darkTheme: SkillSwapTheme.dark,
+          themeMode: currentMode,
+          initialRoute: '/',
+          routes: {
+            '/': (context) => const AuthWrapper(),
+            '/onboarding': (context) => const OnboardingScreen(),
+            '/login': (context) => const LoginScreen(),
+            '/home': (context) => const HomeScreen(),
+            '/ai-tutor': (context) => const AITutorScreen(),
+            '/skill-exchange': (context) => const SkillExchangeScreen(),
+            '/explore': (context) => const ExploreScreen(),
+            '/messages': (context) => const MessagesScreen(),
+            '/profile': (context) => const ProfileScreen(),
+          },
+        );
       },
     );
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -14,6 +15,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _nameController = TextEditingController();
   bool _isLoading = false;
   bool _isLogin = true;
 
@@ -33,10 +35,30 @@ class _LoginScreenState extends State<LoginScreen> {
           password: _passwordController.text.trim(),
         );
       } else {
-        await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        if (_nameController.text.trim().isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please enter a login name.')),
+          );
+          if (mounted) setState(() => _isLoading = false);
+          return;
+        }
+        final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
+        await cred.user?.updateDisplayName(_nameController.text.trim());
+        
+        await FirebaseFirestore.instance.collection('users').doc(cred.user!.uid).set({
+          'name': _nameController.text.trim(),
+          'email': _emailController.text.trim(),
+          'points': 0,
+          'exchanges': 0,
+          'lessons': 0,
+          'rating': 0.0,
+          'teaching_skills': [],
+          'learning_skills': [],
+          'createdAt': FieldValue.serverTimestamp(),
+        });
       }
       if (mounted) Navigator.pushReplacementNamed(context, '/home'); // Let AuthWrapper handle it or push manually.
     } catch (e) {
@@ -60,7 +82,21 @@ class _LoginScreenState extends State<LoginScreen> {
           accessToken: googleAuth.accessToken,
           idToken: googleAuth.idToken,
         );
-        await FirebaseAuth.instance.signInWithCredential(credential);
+        final cred = await FirebaseAuth.instance.signInWithCredential(credential);
+        final doc = await FirebaseFirestore.instance.collection('users').doc(cred.user!.uid).get();
+        if (!doc.exists) {
+          await FirebaseFirestore.instance.collection('users').doc(cred.user!.uid).set({
+            'name': cred.user!.displayName ?? 'User',
+            'email': cred.user!.email ?? '',
+            'points': 0,
+            'exchanges': 0,
+            'lessons': 0,
+            'rating': 0.0,
+            'teaching_skills': [],
+            'learning_skills': [],
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+        }
         if (mounted) Navigator.pushReplacementNamed(context, '/home');
       }
     } catch (e) {
@@ -87,7 +123,21 @@ class _LoginScreenState extends State<LoginScreen> {
         idToken: credential.identityToken,
         accessToken: credential.authorizationCode,
       );
-      await FirebaseAuth.instance.signInWithCredential(oauthCredential);
+      final cred = await FirebaseAuth.instance.signInWithCredential(oauthCredential);
+      final doc = await FirebaseFirestore.instance.collection('users').doc(cred.user!.uid).get();
+      if (!doc.exists) {
+        await FirebaseFirestore.instance.collection('users').doc(cred.user!.uid).set({
+          'name': cred.user!.displayName ?? 'User',
+          'email': cred.user!.email ?? '',
+          'points': 0,
+          'exchanges': 0,
+          'lessons': 0,
+          'rating': 0.0,
+          'teaching_skills': [],
+          'learning_skills': [],
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
       if (mounted) Navigator.pushReplacementNamed(context, '/home');
     } catch (e) {
       if (mounted) {
@@ -248,6 +298,31 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildEmailForm() {
     return Column(
       children: [
+        if (!_isLogin) ...[
+          TextField(
+            controller: _nameController,
+            keyboardType: TextInputType.name,
+            decoration: InputDecoration(
+              hintText: 'Login name',
+              prefixIcon: const Icon(Icons.person_outline),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(color: SkillSwapColors.primary, width: 2),
+              ),
+              filled: true,
+              fillColor: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
         TextField(
           controller: _emailController,
           keyboardType: TextInputType.emailAddress,

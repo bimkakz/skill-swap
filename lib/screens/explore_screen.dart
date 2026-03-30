@@ -58,7 +58,7 @@ class ExploreScreen extends StatelessWidget {
                     itemCount: categories.length,
                     itemBuilder: (context, index) {
                       final cat = categories[index];
-                      return _buildCategoryCard(cat);
+                      return _buildCategoryCard(cat, context);
                     },
                   ),
                   const SizedBox(height: 32),
@@ -72,9 +72,9 @@ class ExploreScreen extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  _buildTrendingItem('Spanish Language', 234, 'exchange'),
-                  _buildTrendingItem('Python Programming', 189, 'both'),
-                  _buildTrendingItem('Guitar Basics', 156, 'paid'),
+                  _buildTrendingItem('Spanish Language', 234, 'exchange', context),
+                  _buildTrendingItem('Python Programming', 189, 'both', context),
+                  _buildTrendingItem('Guitar Basics', 156, 'paid', context),
                   const SizedBox(height: 100),
                 ],
               ),
@@ -111,7 +111,7 @@ class ExploreScreen extends StatelessWidget {
               hintText: 'Search any skill...',
               prefixIcon: const Icon(Icons.search, color: Colors.grey),
               filled: true,
-              fillColor: Colors.white,
+              fillColor: Theme.of(context).brightness == Brightness.dark ? Colors.white10 : Colors.white,
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide.none),
@@ -123,17 +123,21 @@ class ExploreScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCategoryCard(Map<String, dynamic> cat) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
-          BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))
-        ],
-      ),
-      child: Column(
+  Widget _buildCategoryCard(Map<String, dynamic> cat, BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.pushNamed(context, '/skill-exchange');
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 2))
+          ],
+        ),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -160,19 +164,24 @@ class ExploreScreen extends StatelessWidget {
           ),
         ],
       ),
+      ),
     );
   }
 
-  Widget _buildTrendingItem(String skill, int learners, String type) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.shade100),
-      ),
-      child: Row(
+  Widget _buildTrendingItem(String skill, int learners, String type, BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.pushNamed(context, '/skill-exchange');
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white12),
+        ),
+        child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Column(
@@ -202,6 +211,7 @@ class ExploreScreen extends StatelessWidget {
                       fontWeight: FontWeight.bold)),
             ),
         ],
+      ),
       ),
     );
   }

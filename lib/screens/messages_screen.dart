@@ -1,53 +1,39 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../theme.dart';
 import '../widgets/bottom_nav_bar.dart';
+import 'chat_detail_screen.dart';
 
 class MessagesScreen extends StatelessWidget {
   const MessagesScreen({super.key});
 
-  final List<Map<String, dynamic>> conversations = const [
-    {
-      'name': 'Maria Garcia',
-      'image':
-          'https://images.unsplash.com/photo-1770564512654-35be546ed257?q=80&w=200',
-      'lastMessage': "Great! Let's start next week then.",
-      'time': '2m ago',
-      'unread': 2,
-      'online': true,
-    },
-    {
-      'name': 'David Kim',
-      'image':
-          'https://images.unsplash.com/photo-1764816657425-b3c79b616d14?q=80&w=200',
-      'lastMessage': 'Thanks for the piano lesson!',
-      'time': '1h ago',
-      'unread': 0,
-      'online': false,
-    },
-    {
-      'name': 'Sophie Laurent',
-      'image':
-          'https://images.unsplash.com/photo-1623594675959-02360202d4d6?q=80&w=200',
-      'lastMessage': 'Can we reschedule to tomorrow?',
-      'time': '3h ago',
-      'unread': 1,
-      'online': true,
-    }
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return const Scaffold(body: Center(child: Text('Not logged in')));
+
     return Scaffold(
       body: SafeArea(
         child: Column(
           children: [
             _buildHeader(),
             Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.all(24),
-                itemCount: conversations.length,
-                itemBuilder: (context, index) {
-                  return _buildConversationItem(conversations[index], context);
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance.collection('users').snapshots(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                  final users = snapshot.data!.docs.where((d) => d.id != currentUser.uid).toList();
+                  if (users.isEmpty) return const Center(child: Text('No users found.'));
+
+                  return ListView.builder(
+                    padding: const EdgeInsets.all(24),
+                    itemCount: users.length,
+                    itemBuilder: (context, index) {
+                      final userData = users[index].data() as Map<String, dynamic>;
+                      return _buildConversationItem(users[index].id, userData, context);
+                    },
+                  );
                 },
               ),
             ),
@@ -91,81 +77,38 @@ class MessagesScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildConversationItem(
-      Map<String, dynamic> convo, BuildContext context) {
+  Widget _buildConversationItem(String userId, Map<String, dynamic> userData, BuildContext context) {
+    final name = userData['name']?.toString() ?? 'User';
     return GestureDetector(
-      onTap: () => Navigator.pushNamed(context, '/chat-detail'),
+      onTap: () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => ChatDetailScreen(
+          receiverId: userId,
+          receiverName: name,
+        )));
+      },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: const [
-            BoxShadow(
-                color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))
-          ],
+          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
         ),
         child: Row(
           children: [
-            Stack(
-              children: [
-                CircleAvatar(
-                    backgroundImage: NetworkImage(convo['image']), radius: 28),
-                if (convo['online'])
-                  Positioned(
-                    right: 0,
-                    bottom: 0,
-                    child: Container(
-                      width: 14,
-                      height: 14,
-                      decoration: BoxDecoration(
-                          color: Colors.green,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2)),
-                    ),
-                  ),
-              ],
+            CircleAvatar(
+              backgroundColor: SkillSwapColors.primary.withOpacity(0.2),
+              radius: 28,
+              child: Text(name.isNotEmpty ? name[0].toUpperCase() : 'U', style: const TextStyle(fontSize: 20, color: SkillSwapColors.primary, fontWeight: FontWeight.bold)),
             ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(convo['name'],
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 16)),
-                      Text(convo['time'],
-                          style: const TextStyle(
-                              color: Colors.grey, fontSize: 12)),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                          child: Text(convo['lastMessage'],
-                              style: TextStyle(
-                                  color: Colors.grey.shade600, fontSize: 14),
-                              overflow: TextOverflow.ellipsis)),
-                      if (convo['unread'] > 0)
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: const BoxDecoration(
-                              color: SkillSwapColors.primary,
-                              shape: BoxShape.circle),
-                          child: Text(convo['unread'].toString(),
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold)),
-                        ),
-                    ],
-                  ),
+                   Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                   const SizedBox(height: 4),
+                   Text('Tap to chat', style: TextStyle(color: Colors.grey.shade600, fontSize: 14)),
                 ],
               ),
             ),
