@@ -11,7 +11,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
 import 'screens/messages_screen.dart';
 import 'screens/chat_detail_screen.dart';
+import 'screens/chat_detail_screen.dart';
 import 'screens/profile_screen.dart';
+import 'widgets/bottom_nav_bar.dart';
 
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
 
@@ -47,7 +49,7 @@ class SkillSwapApp extends StatelessWidget {
             '/': (context) => const AuthWrapper(),
             '/onboarding': (context) => const OnboardingScreen(),
             '/login': (context) => const LoginScreen(),
-            '/home': (context) => const HomeScreen(),
+            '/home': (context) => const MainScreen(),
             '/ai-tutor': (context) => const AITutorScreen(),
             '/skill-exchange': (context) => const SkillExchangeScreen(),
             '/explore': (context) => const ExploreScreen(),
@@ -103,10 +105,46 @@ class AuthWrapper extends StatelessWidget {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
         if (snapshot.hasData) {
-          return const HomeScreen();
+          return const MainScreen();
         }
         return const LoginScreen();
       },
+    );
+  }
+}
+
+class MainScreen extends StatefulWidget {
+  const MainScreen({super.key});
+
+  @override
+  State<MainScreen> createState() => _MainScreenState();
+}
+
+class _MainScreenState extends State<MainScreen> {
+  int _currentIndex = 0;
+
+  final List<Widget> _screens = [
+    const HomeScreen(),
+    const ExploreScreen(),
+    const AITutorScreen(),
+    const ProfileScreen(),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _screens,
+      ),
+      bottomNavigationBar: BottomNavBar(
+        currentIndex: _currentIndex,
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+      ),
     );
   }
 }

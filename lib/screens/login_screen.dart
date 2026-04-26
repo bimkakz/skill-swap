@@ -152,6 +152,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+
     return Scaffold(
       body: Container(
         width: double.infinity,
@@ -160,11 +163,9 @@ class _LoginScreenState extends State<LoginScreen> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              SkillSwapColors.primary.withOpacity(0.05),
-              Colors.white,
-              SkillSwapColors.secondary.withOpacity(0.05),
-            ],
+            colors: isDark 
+              ? [SkillSwapColors.backgroundDark, const Color(0xFF1E293B)]
+              : [SkillSwapColors.primary.withOpacity(0.05), Colors.white, SkillSwapColors.secondary.withOpacity(0.05)],
           ),
         ),
         child: SafeArea(
@@ -173,23 +174,16 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               children: [
                 const SizedBox(height: 40),
-                _buildLogoHeader(),
+                _buildLogoHeader(context),
                 const SizedBox(height: 40),
-                _buildEmailForm(),
-                const SizedBox(height: 16),
+                _buildEmailForm(context),
+                const SizedBox(height: 24),
                 _isLoading
                     ? const CircularProgressIndicator()
                     : ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          minimumSize: const Size(double.infinity, 56),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
                         onPressed: _submitEmail,
                         child: Text(
                           _isLogin ? 'Login' : 'Register',
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                         ),
                       ),
                 const SizedBox(height: 16),
@@ -199,49 +193,54 @@ class _LoginScreenState extends State<LoginScreen> {
                     _isLogin
                         ? 'Don\'t have an account? Register'
                         : 'Already have an account? Login',
-                    style: const TextStyle(color: SkillSwapColors.primary, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      color: isDark ? theme.colorScheme.secondary : SkillSwapColors.primary, 
+                      fontWeight: FontWeight.w600
+                    ),
                   ),
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 24.0),
                   child: Row(
                     children: [
-                      const Expanded(child: Divider()),
+                      Expanded(child: Divider(color: theme.dividerColor)),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        child: Text('or continue with', style: TextStyle(color: Colors.grey.shade600)),
+                        child: Text('or continue with', style: TextStyle(color: theme.textTheme.bodyMedium?.color?.withOpacity(0.6))),
                       ),
-                      const Expanded(child: Divider()),
+                      Expanded(child: Divider(color: theme.dividerColor)),
                     ],
                   ),
                 ),
                 _buildSocialButton(
-                  iconPath: 'assets/google_logo.png', // Or generic G icon
+                  context: context,
+                  iconPath: 'assets/google_logo.png',
                   label: 'Google',
                   onPressed: _isLoading ? () {} : _signInWithGoogle,
                 ),
                 const SizedBox(height: 16),
                 _buildSocialButton(
+                  context: context,
                   icon: Icons.apple,
                   label: 'Apple',
-                  backgroundColor: Colors.black,
-                  textColor: Colors.white,
+                  backgroundColor: isDark ? Colors.white : Colors.black,
+                  textColor: isDark ? Colors.black : Colors.white,
                   onPressed: _isLoading ? () {} : _signInWithApple,
                 ),
                 const SizedBox(height: 32),
-                const Text.rich(
+                Text.rich(
                   TextSpan(
                     text: 'By continuing, you agree to our ',
-                    style: TextStyle(fontSize: 12, color: SkillSwapColors.textBody),
+                    style: TextStyle(fontSize: 12, color: theme.textTheme.bodyMedium?.color),
                     children: [
                       TextSpan(
                         text: 'Terms',
-                        style: TextStyle(color: SkillSwapColors.primary, fontWeight: FontWeight.bold),
+                        style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold),
                       ),
                       TextSpan(text: ' and '),
                       TextSpan(
                         text: 'Privacy Policy',
-                        style: TextStyle(color: SkillSwapColors.primary, fontWeight: FontWeight.bold),
+                        style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
@@ -255,7 +254,8 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildLogoHeader() {
+  Widget _buildLogoHeader(BuildContext context) {
+    final theme = Theme.of(context);
     return Column(
       children: [
         Container(
@@ -282,111 +282,110 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
         const SizedBox(height: 24),
-        const Text(
+        Text(
           'SkillSwap',
-          style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: SkillSwapColors.textHeader),
+          style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: theme.textTheme.headlineLarge?.color),
         ),
         const SizedBox(height: 8),
         Text(
           _isLogin ? 'Welcome back!' : 'Create your account',
-          style: const TextStyle(fontSize: 16, color: SkillSwapColors.textBody),
+          style: TextStyle(fontSize: 16, color: theme.textTheme.bodyMedium?.color),
         ),
       ],
     );
   }
 
-  Widget _buildEmailForm() {
+  Widget _buildEmailForm(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+
     return Column(
       children: [
         if (!_isLogin) ...[
-          TextField(
+          _buildTextField(
+            context: context,
             controller: _nameController,
-            keyboardType: TextInputType.name,
-            decoration: InputDecoration(
-              hintText: 'Login name',
-              prefixIcon: const Icon(Icons.person_outline),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: Colors.grey.shade300),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: Colors.grey.shade300),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: const BorderSide(color: SkillSwapColors.primary, width: 2),
-              ),
-              filled: true,
-              fillColor: Colors.white,
-            ),
+            hint: 'Login name',
+            icon: Icons.person_outline,
+            type: TextInputType.name,
           ),
           const SizedBox(height: 16),
         ],
-        TextField(
+        _buildTextField(
+          context: context,
           controller: _emailController,
-          keyboardType: TextInputType.emailAddress,
-          decoration: InputDecoration(
-            hintText: 'Email address',
-            prefixIcon: const Icon(Icons.email_outlined),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: SkillSwapColors.primary, width: 2),
-            ),
-            filled: true,
-            fillColor: Colors.white,
-          ),
+          hint: 'Email address',
+          icon: Icons.email_outlined,
+          type: TextInputType.emailAddress,
         ),
         const SizedBox(height: 16),
-        TextField(
+        _buildTextField(
+          context: context,
           controller: _passwordController,
-          obscureText: true,
-          decoration: InputDecoration(
-            hintText: 'Password',
-            prefixIcon: const Icon(Icons.lock_outline),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: SkillSwapColors.primary, width: 2),
-            ),
-            filled: true,
-            fillColor: Colors.white,
-          ),
+          hint: 'Password',
+          icon: Icons.lock_outline,
+          obscure: true,
         ),
       ],
+    );
+  }
+
+  Widget _buildTextField({
+    required BuildContext context,
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    bool obscure = false,
+    TextInputType type = TextInputType.text,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+
+    return TextField(
+      controller: controller,
+      obscureText: obscure,
+      keyboardType: type,
+      style: TextStyle(color: theme.textTheme.bodyLarge?.color),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(color: theme.textTheme.bodyMedium?.color?.withOpacity(0.5)),
+        prefixIcon: Icon(icon, color: theme.colorScheme.primary.withOpacity(0.7)),
+        filled: true,
+        fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade100,
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: theme.dividerColor),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+        ),
+      ),
     );
   }
 
   Widget _buildSocialButton({
+    required BuildContext context,
     String? iconPath,
     IconData? icon,
     required String label,
     required VoidCallback onPressed,
-    Color backgroundColor = Colors.white,
-    Color textColor = SkillSwapColors.textHeader,
+    Color? backgroundColor,
+    Color? textColor,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    
+    final bg = backgroundColor ?? (isDark ? theme.cardColor : Colors.white);
+    final text = textColor ?? theme.textTheme.bodyLarge?.color;
+
     return Container(
       width: double.infinity,
       height: 56,
       decoration: BoxDecoration(
-        color: backgroundColor,
+        color: bg,
         borderRadius: BorderRadius.circular(16),
-        border: backgroundColor == Colors.white ? Border.all(color: Colors.grey.shade200, width: 2) : null,
+        border: Border.all(color: theme.dividerColor),
         boxShadow: [
           BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2)),
         ],
@@ -401,11 +400,11 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                if (icon != null) Icon(icon, color: textColor, size: 24),
-                if (icon == null && iconPath != null) 
+                if (icon != null) Icon(icon, color: text, size: 24),
+                if (icon == null) 
                   const Icon(Icons.g_mobiledata, color: Colors.blue, size: 32),
                 const SizedBox(width: 12),
-                Text('Continue with $label', style: TextStyle(color: textColor, fontSize: 16, fontWeight: FontWeight.w600)),
+                Text('Continue with $label', style: TextStyle(color: text, fontSize: 16, fontWeight: FontWeight.w600)),
               ],
             ),
           ),

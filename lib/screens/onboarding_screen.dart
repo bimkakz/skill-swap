@@ -38,13 +38,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Colors.white, Colors.grey.shade100],
+            colors: isDark 
+              ? [SkillSwapColors.backgroundDark, const Color(0xFF1E293B)]
+              : [Colors.white, Colors.grey.shade100],
           ),
         ),
         child: SafeArea(
@@ -54,7 +59,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 alignment: Alignment.topRight,
                 child: TextButton(
                   onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
-                  child: const Text('Skip', style: TextStyle(color: SkillSwapColors.textBody)),
+                  child: Text('Skip', style: TextStyle(color: theme.textTheme.bodyMedium?.color)),
                 ),
               ),
               Expanded(
@@ -84,7 +89,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.1),
+                                      color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
                                       blurRadius: 20,
                                       offset: const Offset(0, 10),
                                     ),
@@ -115,19 +120,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           const SizedBox(height: 60),
                           Text(
                             slide.title,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 32,
                               fontWeight: FontWeight.bold,
-                              color: SkillSwapColors.textHeader,
+                              color: theme.textTheme.headlineMedium?.color,
                             ),
                           ),
                           const SizedBox(height: 16),
                           Text(
                             slide.description,
                             textAlign: TextAlign.center,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 18,
-                              color: SkillSwapColors.textBody,
+                              color: theme.textTheme.bodyLarge?.color?.withOpacity(0.8),
                               height: 1.5,
                             ),
                           ),
@@ -150,7 +155,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           height: 8,
                           width: _currentPage == index ? 32 : 8,
                           decoration: BoxDecoration(
-                            color: _currentPage == index ? SkillSwapColors.primary : Colors.grey.shade300,
+                            color: _currentPage == index ? SkillSwapColors.primary : (isDark ? Colors.white24 : Colors.grey.shade300),
                             borderRadius: BorderRadius.circular(4),
                           ),
                         ),
@@ -170,6 +175,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _slides[_currentPage].color,
+                        foregroundColor: Colors.white,
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,

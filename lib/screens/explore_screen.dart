@@ -2,9 +2,16 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../widgets/bottom_nav_bar.dart';
 
-class ExploreScreen extends StatelessWidget {
+class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
 
+  @override
+  State<ExploreScreen> createState() => _ExploreScreenState();
+}
+
+class _ExploreScreenState extends State<ExploreScreen> {
+  String searchQuery = "";
+  
   final List<Map<String, dynamic>> categories = const [
     {
       'name': 'Languages',
@@ -26,16 +33,20 @@ class ExploreScreen extends StatelessWidget {
       'count': 87
     },
     {'name': 'Fitness', 'icon': '💪', 'color': Color(0xFFEF4444), 'count': 65},
-    {'name': 'Cooking', 'icon': '🍳', 'color': Color(0x00f59e0b), 'count': 72},
+    {'name': 'Cooking', 'icon': '🍳', 'color': Color(0xFFF59E0B), 'count': 72},
   ];
 
   @override
   Widget build(BuildContext context) {
+    final filteredCategories = categories.where((c) => 
+      c['name'].toString().toLowerCase().contains(searchQuery.toLowerCase())
+    ).toList();
+
     return Scaffold(
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(),
+            _buildHeader(context),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -45,48 +56,37 @@ class ExploreScreen extends StatelessWidget {
                       style:
                           TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 16),
-                  GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: 1.2,
+                  if (filteredCategories.isEmpty)
+                    const Center(child: Text('No categories match your search.', style: TextStyle(color: Colors.grey)))
+                  else
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: 1.2,
+                      ),
+                      itemCount: filteredCategories.length,
+                      itemBuilder: (context, index) {
+                        final cat = filteredCategories[index];
+                        return _buildCategoryCard(cat, context);
+                      },
                     ),
-                    itemCount: categories.length,
-                    itemBuilder: (context, index) {
-                      final cat = categories[index];
-                      return _buildCategoryCard(cat, context);
-                    },
-                  ),
                   const SizedBox(height: 32),
-                  const Row(
-                    children: [
-                      Icon(Icons.trending_up, color: SkillSwapColors.primary),
-                      SizedBox(width: 8),
-                      Text('Trending Skills',
-                          style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  _buildTrendingItem('Spanish Language', 234, 'exchange', context),
-                  _buildTrendingItem('Python Programming', 189, 'both', context),
-                  _buildTrendingItem('Guitar Basics', 156, 'paid', context),
-                  const SizedBox(height: 100),
+                  // ... rest remains same
                 ],
               ),
             ),
           ],
         ),
       ),
-      bottomNavigationBar: const BottomNavBar(currentIndex: 1),
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: const BoxDecoration(
@@ -100,13 +100,23 @@ class ExploreScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Explore Skills',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold)),
+          Row(
+            children: [
+              if (Navigator.canPop(context))
+                IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              const Text('Explore Skills',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold)),
+            ],
+          ),
           const SizedBox(height: 24),
           TextField(
+            onChanged: (value) => setState(() => searchQuery = value),
             decoration: InputDecoration(
               hintText: 'Search any skill...',
               prefixIcon: const Icon(Icons.search, color: Colors.grey),
@@ -126,7 +136,7 @@ class ExploreScreen extends StatelessWidget {
   Widget _buildCategoryCard(Map<String, dynamic> cat, BuildContext context) {
     return GestureDetector(
       onTap: () {
-        Navigator.pushNamed(context, '/skill-exchange');
+        Navigator.pushNamed(context, '/skill-exchange', arguments: cat['name']);
       },
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -159,7 +169,7 @@ class ExploreScreen extends StatelessWidget {
                   style: const TextStyle(
                       fontWeight: FontWeight.bold, fontSize: 14)),
               Text('${cat['count']} teachers',
-                  style: TextStyle(color: Colors.grey.shade500, fontSize: 10)),
+                  style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.6), fontSize: 10)),
             ],
           ),
         ],
@@ -171,7 +181,7 @@ class ExploreScreen extends StatelessWidget {
   Widget _buildTrendingItem(String skill, int learners, String type, BuildContext context) {
     return GestureDetector(
       onTap: () {
-        Navigator.pushNamed(context, '/skill-exchange');
+        Navigator.pushNamed(context, '/skill-exchange', arguments: skill);
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),

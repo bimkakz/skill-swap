@@ -4,12 +4,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import '../theme.dart';
 import 'video_call_screen.dart';
+import 'audio_call_screen.dart';
 
 class ChatDetailScreen extends StatefulWidget {
   final String receiverId;
   final String receiverName;
+  final bool isExchangeMode;
 
-  const ChatDetailScreen({super.key, required this.receiverId, required this.receiverName});
+  const ChatDetailScreen({super.key, required this.receiverId, required this.receiverName, this.isExchangeMode = false});
 
   @override
   State<ChatDetailScreen> createState() => _ChatDetailScreenState();
@@ -63,13 +65,217 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     }
   }
 
+  Future<void> _completeExchange() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final batch = FirebaseFirestore.instance.batch();
+      final myRef = FirebaseFirestore.instance.collection('users').doc(_currentUserId);
+      final partnerRef = FirebaseFirestore.instance.collection('users').doc(widget.receiverId);
+      
+      batch.set(myRef, {
+        'points': FieldValue.increment(50),
+        'exchanges': FieldValue.increment(1),
+      }, SetOptions(merge: true));
+      
+      batch.set(partnerRef, {
+        'points': FieldValue.increment(50),
+        'exchanges': FieldValue.increment(1),
+      }, SetOptions(merge: true));
+
+      final myHistoryRef = myRef.collection('history').doc();
+      final partnerHistoryRef = partnerRef.collection('history').doc();
+
+      batch.set(myHistoryRef, {
+        'type': 'exchange',
+        'partnerId': widget.receiverId,
+        'partnerName': widget.receiverName,
+        'timestamp': FieldValue.serverTimestamp(),
+        'pointsAwarded': 50,
+      });
+
+      batch.set(partnerHistoryRef, {
+        'type': 'exchange',
+        'partnerId': _currentUserId,
+        'partnerName': FirebaseAuth.instance.currentUser?.displayName ?? 'User',
+        'timestamp': FieldValue.serverTimestamp(),
+        'pointsAwarded': 50,
+      });
+      
+      await batch.commit();
+      _sendMessage(type: 'system', text: '✅ Exchange completed! +50 Points awarded to both users.');
+
+      if (context.mounted) {
+        Navigator.pop(context); // Dismiss loading dialog
+        _showRatingDialog(); // Show rating dialog after exchange
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to complete exchange.'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _completeLesson() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final batch = FirebaseFirestore.instance.batch();
+      final myRef = FirebaseFirestore.instance.collection('users').doc(_currentUserId);
+      final partnerRef = FirebaseFirestore.instance.collection('users').doc(widget.receiverId);
+      
+      // Increment lessons count
+      batch.set(myRef, {'lessons': FieldValue.increment(1)}, SetOptions(merge: true));
+      batch.set(partnerRef, {'lessons': FieldValue.increment(1)}, SetOptions(merge: true));
+      
+      final myHistoryRef = myRef.collection('history').doc();
+      final partnerHistoryRef = partnerRef.collection('history').doc();
+
+      batch.set(myHistoryRef, {
+        'type': 'lesson',
+        'partnerId': widget.receiverId,
+        'partnerName': widget.receiverName,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+
+      batch.set(partnerHistoryRef, {
+        'type': 'lesson',
+        'partnerId': _currentUserId,
+        'partnerName': FirebaseAuth.instance.currentUser?.displayName ?? 'User',
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+      
+      await batch.commit();
+      _sendMessage(type: 'system', text: '🎓 Lesson completed! Statistics updated.');
+
+      if (context.mounted) {
+        Navigator.pop(context); // Dismiss loading dialog
+        _showRatingDialog(); // Show rating dialog after lesson
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to complete lesson.'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  void _showRatingDialog() {
+    double selectedRating = 5.0;
+    final TextEditingController reviewController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text('Rate ${widget.receiverName}'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('How was your experience?'),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(5, (index) {
+                    return IconButton(
+                      icon: Icon(
+                        index < selectedRating ? Icons.star : Icons.star_border,
+                        color: Colors.amber,
+                        size: 32,
+                      ),
+                      onPressed: () => setState(() => selectedRating = index + 1.0),
+                    );
+                  }),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: reviewController,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    hintText: 'Write a short review...',
+                    filled: true,
+                    fillColor: Theme.of(context).brightness == Brightness.dark ? Colors.white10 : Colors.grey.shade100,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Skip')),
+            ElevatedButton(
+              onPressed: () async {
+                await _updateUserRating(widget.receiverId, selectedRating, reviewController.text.trim());
+                if (context.mounted) Navigator.pop(context);
+              },
+              child: const Text('Submit'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _updateUserRating(String userId, double newRating, String reviewText) async {
+    final userRef = FirebaseFirestore.instance.collection('users').doc(userId);
+    
+    await FirebaseFirestore.instance.runTransaction((transaction) async {
+      final snapshot = await transaction.get(userRef);
+      if (!snapshot.exists) return;
+
+      final data = snapshot.data() as Map<String, dynamic>;
+      final double currentRating = (data['rating'] ?? 0.0).toDouble();
+      final int currentCount = data['ratingCount'] ?? 0;
+
+      final double updatedRating = ((currentRating * currentCount) + newRating) / (currentCount + 1);
+      
+      transaction.update(userRef, {
+        'rating': updatedRating,
+        'ratingCount': currentCount + 1,
+      });
+
+      // Also add the review to a subcollection
+      if (reviewText.isNotEmpty) {
+        final reviewRef = userRef.collection('reviews').doc();
+        transaction.set(reviewRef, {
+          'rating': newRating,
+          'text': reviewText,
+          'authorId': _currentUserId,
+          'authorName': FirebaseAuth.instance.currentUser?.displayName ?? 'Anonymous',
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 1,
+        backgroundColor: isDark ? theme.scaffoldBackgroundColor : Colors.white,
+        elevation: 0,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(color: theme.dividerColor, height: 1),
+        ),
         leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () => Navigator.pop(context)),
@@ -95,13 +301,25 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           ],
         ),
         actions: [
-          IconButton(icon: const Icon(Icons.phone_outlined), onPressed: () {}),
-          IconButton(
-              icon: const Icon(Icons.videocam_outlined), 
+          if (widget.isExchangeMode)
+            TextButton.icon(
+              icon: const Icon(Icons.check_circle_outline, color: Colors.green),
+              label: const Text('Complete', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+              onPressed: _completeExchange,
+            ),
+          if (!widget.isExchangeMode)
+            IconButton(
+              icon: const Icon(Icons.phone_outlined), 
               onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => VideoCallScreen(receiverName: widget.receiverName)));
-              }),
-          IconButton(icon: const Icon(Icons.more_vert), onPressed: () {}),
+                Navigator.push(context, MaterialPageRoute(builder: (_) => AudioCallScreen(receiverName: widget.receiverName)));
+              }
+            ),
+          if (!widget.isExchangeMode)
+            IconButton(
+                icon: const Icon(Icons.videocam_outlined), 
+                onPressed: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => VideoCallScreen(receiverName: widget.receiverName)));
+                }),
         ],
       ),
       body: Column(
@@ -138,10 +356,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                           margin: const EdgeInsets.symmetric(vertical: 16),
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: theme.cardColor,
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(color: SkillSwapColors.primary.withOpacity(0.3)),
-                            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+                            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 2))],
                           ),
                           child: Column(
                             children: [
@@ -157,12 +375,41 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                   children: [
                                     OutlinedButton(onPressed: () {}, child: const Text('Decline')),
                                     const SizedBox(width: 8),
-                                    ElevatedButton(onPressed: () {}, child: const Text('Accept')),
+                                    ElevatedButton(onPressed: () {
+                                      _sendMessage(type: 'text', text: 'I accepted the lesson proposal!');
+                                    }, child: const Text('Accept')),
                                   ],
+                                ),
+                              if (isMe || true) // Show "Complete" option for demo/testing
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 8.0),
+                                  child: TextButton.icon(
+                                    onPressed: _completeLesson,
+                                    icon: const Icon(Icons.check_circle_outline),
+                                    label: const Text('Complete Lesson'),
+                                    style: TextButton.styleFrom(foregroundColor: Colors.green),
+                                  ),
                                 ),
                               if (isMe)
                                 const Text('Waiting for response...', style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic, fontSize: 12)),
                             ],
+                          ),
+                        ),
+                      );
+                    }
+
+                    if (msgType == 'system') {
+                      return Container(
+                        margin: const EdgeInsets.symmetric(vertical: 8),
+                        child: Center(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.green.withOpacity(0.3)),
+                            ),
+                            child: Text(msg['text'] ?? '', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12)),
                           ),
                         ),
                       );
@@ -181,31 +428,31 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 12),
                             decoration: BoxDecoration(
-                              color: isMe ? SkillSwapColors.primary : Colors.white,
+                              color: isMe ? (isDark ? SkillSwapColors.raspberry : SkillSwapColors.primary) : theme.cardColor,
                               borderRadius: BorderRadius.only(
                                 topLeft: const Radius.circular(20),
                                 topRight: const Radius.circular(20),
                                 bottomLeft: Radius.circular(isMe ? 20 : 0),
                                 bottomRight: Radius.circular(isMe ? 0 : 20),
                               ),
-                              boxShadow: const [
+                              boxShadow: [
                                 BoxShadow(
-                                    color: Colors.black12,
+                                    color: Colors.black.withOpacity(0.05),
                                     blurRadius: 4,
-                                    offset: Offset(0, 2))
+                                    offset: const Offset(0, 2))
                               ],
                             ),
                             child: Text(msg['text'] ?? '',
                                 style: TextStyle(
                                     color: isMe
                                         ? Colors.white
-                                        : SkillSwapColors.textHeader)),
+                                        : theme.textTheme.bodyLarge?.color)),
                           ),
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 4),
                             child: Text(timeString,
-                                style: const TextStyle(
-                                    fontSize: 10, color: Colors.grey)),
+                                style: TextStyle(
+                                    fontSize: 10, color: theme.textTheme.bodyMedium?.color?.withOpacity(0.6))),
                           ),
                           const SizedBox(height: 12),
                         ],
@@ -218,7 +465,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            color: Colors.white,
+            decoration: BoxDecoration(
+              color: theme.cardColor,
+              border: Border(top: BorderSide(color: theme.dividerColor)),
+            ),
             child: SafeArea(
               child: Row(
                 children: [
@@ -227,7 +477,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     child: Container(
                       width: 44,
                       height: 44,
-                      decoration: BoxDecoration(color: Colors.grey.shade100, shape: BoxShape.circle),
+                      decoration: BoxDecoration(color: isDark ? Colors.white10 : Colors.grey.shade100, shape: BoxShape.circle),
                       child: const Icon(Icons.calendar_month, color: SkillSwapColors.primary),
                     ),
                   ),
@@ -238,7 +488,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                       decoration: InputDecoration(
                         hintText: 'Type a message...',
                         filled: true,
-                        fillColor: Colors.grey.shade100,
+                        fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade100,
                         border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(24),
                             borderSide: BorderSide.none),
@@ -254,8 +504,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     child: Container(
                       width: 48,
                       height: 48,
-                      decoration: const BoxDecoration(
-                          color: SkillSwapColors.primary,
+                      decoration: BoxDecoration(
+                          color: isDark ? SkillSwapColors.raspberry : SkillSwapColors.primary,
                           shape: BoxShape.circle),
                       child:
                           const Icon(Icons.send, color: Colors.white, size: 20),

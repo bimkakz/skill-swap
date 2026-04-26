@@ -3,7 +3,8 @@ import '../theme.dart';
 import '../widgets/bottom_nav_bar.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
+import 'chat_detail_screen.dart';
+import 'user_profile_screen.dart';
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -13,7 +14,7 @@ class HomeScreen extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeaderStream(),
+            _buildHeaderStream(context),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -45,16 +46,16 @@ class HomeScreen extends StatelessWidget {
                       SkillSwapColors.secondary,
                       Color(0xFF16A34A)
                     ],
-                    onTap: () {},
+                    onTap: () => Navigator.pushNamed(context, '/explore'),
                   ),
                   const SizedBox(height: 12),
                   _buildPathCard(
-                    title: 'AI Tutor',
+                    title: 'Messages',
                     description:
-                        'Learn anything, anytime with your AI assistant',
-                    icon: Icons.auto_awesome,
+                        'Chat with your teachers, students, and peers',
+                    icon: Icons.chat_bubble,
                     gradient: const [SkillSwapColors.accent, Color(0xFF0891B2)],
-                    onTap: () => Navigator.pushNamed(context, '/ai-tutor'),
+                    onTap: () => Navigator.pushNamed(context, '/messages'),
                   ),
                   const SizedBox(height: 32),
                   Row(
@@ -72,6 +73,7 @@ class HomeScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   _buildRecommendationItem(
+                    context: context,
                     name: 'Sarah Chen',
                     skill: 'Japanese Language',
                     rating: 4.9,
@@ -81,6 +83,7 @@ class HomeScreen extends StatelessWidget {
                         'https://images.unsplash.com/photo-1581065178047-8ee15951ede6?q=80&w=200',
                   ),
                   _buildRecommendationItem(
+                    context: context,
                     name: 'Alex Morgan',
                     skill: 'Guitar & Music',
                     rating: 4.8,
@@ -96,27 +99,26 @@ class HomeScreen extends StatelessWidget {
           ],
         ),
       ),
-      bottomNavigationBar: const BottomNavBar(currentIndex: 0),
     );
   }
 
-  Widget _buildHeaderStream() {
+  Widget _buildHeaderStream(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return _buildHeader('User', 0);
+    if (user == null) return _buildHeader(context, 'User', 0);
     
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return _buildHeader(user.displayName ?? 'User', 0);
+      builder: (streamContext, snapshot) {
+        if (!snapshot.hasData) return _buildHeader(context, user.displayName ?? 'User', 0);
         final data = snapshot.data!.data() as Map<String, dynamic>? ?? {};
         final points = data['points'] is int ? data['points'] as int : int.tryParse(data['points']?.toString() ?? '0') ?? 0;
         final name = data['name']?.toString() ?? user.displayName ?? 'User';
-        return _buildHeader(name, points);
+        return _buildHeader(context, name, points);
       },
     );
   }
 
-  Widget _buildHeader(String userName, int points) {
+  Widget _buildHeader(BuildContext context, String userName, int points) {
     return Container(
       padding: const EdgeInsets.only(left: 24, right: 24, bottom: 24),
       decoration: BoxDecoration(
@@ -131,14 +133,16 @@ class HomeScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Hello, $userName 👋',
-                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                  Text('What would you like to learn today?',
-                      style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7))),
-                ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Hello, $userName 👋',
+                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                    Text('What would you like to learn today?',
+                        style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7))),
+                  ],
+                ),
               ),
               _buildPointsBadge(points),
             ],
@@ -149,7 +153,7 @@ class HomeScreen extends StatelessWidget {
               hintText: 'Search skills or teachers...',
               prefixIcon: const Icon(Icons.search, color: Colors.grey),
               filled: true,
-              fillColor: Theme.of(context).brightness == Brightness.dark ? Colors.white10 : Colors.grey.shade100,
+              fillColor: Theme.of(context).brightness == Brightness.dark ? Colors.white.withOpacity(0.05) : Colors.grey.shade100,
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide.none),
@@ -242,76 +246,88 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildRecommendationItem(
-      {required String name,
+      {required BuildContext context,
+      required String userId,
+      required Map<String, dynamic> userData,
+      required String name,
       required String skill,
       required double rating,
       required String type,
       int? points,
       String? price,
       required String imageUrl}) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 2))
-        ],
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(backgroundImage: NetworkImage(imageUrl), radius: 28),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 16)),
-                Text(skill,
-                    style:
-                        TextStyle(color: Colors.grey.shade600, fontSize: 14)),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(Icons.star, color: Colors.amber, size: 16),
-                    Text(' $rating',
-                        style: const TextStyle(
-                            fontSize: 12, fontWeight: FontWeight.bold)),
-                    const SizedBox(width: 8),
-                    if (type == 'exchange')
-                      Text('• $points pts',
-                          style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.amber,
-                              fontWeight: FontWeight.bold)),
-                    if (type == 'paid')
-                      Text('• $price',
-                          style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.green,
-                              fontWeight: FontWeight.bold)),
-                  ],
-                ),
-              ],
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => UserProfileScreen(userId: userId, userData: userData)));
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 2))
+          ],
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              backgroundColor: SkillSwapColors.primary.withOpacity(0.1),
+              radius: 28,
+              child: Text(name[0].toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, color: SkillSwapColors.primary)),
             ),
-          ),
-          ElevatedButton(
-            onPressed: () {},
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size(80, 40),
-              backgroundColor: type == 'paid'
-                  ? SkillSwapColors.secondary
-                  : SkillSwapColors.primary,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(name,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 16)),
+                  Text(skill,
+                      style:
+                          TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7), fontSize: 14)),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.star, color: Colors.amber, size: 16),
+                      Text(' ${rating.toStringAsFixed(1)}',
+                          style: const TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.bold)),
+                      const SizedBox(width: 8),
+                      if (type == 'exchange')
+                        Text('• $points pts',
+                            style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.amber,
+                                fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ],
+              ),
             ),
-            child: Text(type == 'paid' ? 'Book' : 'Connect',
-                style: const TextStyle(fontSize: 12)),
-          ),
-        ],
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => ChatDetailScreen(
+                  receiverId: userId,
+                  receiverName: name,
+                  isExchangeMode: type == 'exchange',
+                )));
+              },
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(80, 40),
+                backgroundColor: type == 'paid'
+                    ? SkillSwapColors.secondary
+                    : SkillSwapColors.primary,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              child: Text(type == 'paid' ? 'Book' : 'Connect',
+                  style: const TextStyle(fontSize: 12, color: Colors.white)),
+            ),
+          ],
+        ),
       ),
     );
   }

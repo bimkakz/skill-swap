@@ -1,92 +1,113 @@
 import 'package:flutter/material.dart';
 
 class SkillSwapColors {
+  // Brand Colors
   static const primary = Color(0xFF4F46E5);
   static const secondary = Color(0xFF22C55E);
+  static const raspberry = Color(0xFFF43F5E);
   static const accent = Color(0xFF06B6D4);
-  static const background = Color(0xFFF9FAFB);
+  
+  // Light Theme (Original Names for Compatibility)
+  static const background = Color(0xFFF8FAFC);
   static const surface = Colors.white;
-  static const textHeader = Color(0xFF111827);
-  static const textBody = Color(0xFF4B5563);
+  static const textHeader = Color(0xFF0F172A);
+  static const textBody = Color(0xFF475569);
+  
+  // Explicit names
+  static const backgroundLight = background;
+  static const surfaceLight = surface;
+  static const textHeaderLight = textHeader;
+  static const textBodyLight = textBody;
+  
+  // Dark Theme
+  static const backgroundDark = Color(0xFF0F172A);
+  static const surfaceDark = Color(0xFF1E293B);
+  static const textHeaderDark = Colors.white;
+  static const textBodyDark = Color(0xFF94A3B8);
 }
 
 class SkillSwapTheme {
   static ThemeData get light {
     return ThemeData(
       useMaterial3: true,
+      brightness: Brightness.light,
       colorScheme: ColorScheme.fromSeed(
         seedColor: SkillSwapColors.primary,
+        brightness: Brightness.light,
+        surface: SkillSwapColors.background,
+        onSurface: SkillSwapColors.textBody,
         primary: SkillSwapColors.primary,
         secondary: SkillSwapColors.secondary,
-        surface: SkillSwapColors.surface,
-        background: SkillSwapColors.background,
       ),
-      scaffoldBackgroundColor: SkillSwapColors.background,
+      scaffoldBackgroundColor: SkillSwapColors.backgroundLight,
+      cardColor: SkillSwapColors.surfaceLight,
+      dividerColor: Colors.grey.shade200,
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+        },
+      ),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: false,
         titleTextStyle: TextStyle(
-          color: SkillSwapColors.textHeader,
+          color: SkillSwapColors.textHeaderLight,
           fontSize: 24,
           fontWeight: FontWeight.bold,
         ),
-        iconTheme: IconThemeData(color: SkillSwapColors.textHeader),
+        iconTheme: IconThemeData(color: SkillSwapColors.textHeaderLight),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: SkillSwapColors.primary,
           foregroundColor: Colors.white,
           minimumSize: const Size(double.infinity, 56),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           elevation: 4,
           shadowColor: SkillSwapColors.primary.withOpacity(0.4),
-          textStyle: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
         ),
       ),
-      cardTheme: CardThemeData(
-        color: SkillSwapColors.surface,
-        elevation: 2,
-        shadowColor: Colors.black.withOpacity(0.1),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
         ),
       ),
     );
   }
 
   static ThemeData get dark {
-    const Color deepBlue = Color(0xFF0F172A);
-    const Color raspberry = Color(0xFFF43F5E); // Modern Raspberry/Pink
-    const Color surfaceBlue = Color(0xFF1E293B);
-
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
       colorScheme: ColorScheme.fromSeed(
         brightness: Brightness.dark,
-        seedColor: raspberry,
-        primary: raspberry,
-        secondary: const Color(0xFFFB7185), // Lighter pink
-        surface: surfaceBlue,
-        background: deepBlue,
-        onSurface: Colors.white,
-        onBackground: Colors.white,
-        onPrimary: Colors.white,
+        seedColor: SkillSwapColors.raspberry,
+        primary: SkillSwapColors.raspberry,
+        secondary: const Color(0xFFFB7185),
+        surface: SkillSwapColors.surfaceDark,
+        surfaceContainerHighest: SkillSwapColors.backgroundDark,
+        onSurface: SkillSwapColors.textHeaderDark,
       ),
-      scaffoldBackgroundColor: deepBlue,
-      cardColor: surfaceBlue,
+      scaffoldBackgroundColor: SkillSwapColors.backgroundDark,
+      cardColor: SkillSwapColors.surfaceDark,
+      dividerColor: Colors.white10,
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+        },
+      ),
       textTheme: const TextTheme(
         headlineLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         headlineMedium: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         titleLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         bodyLarge: TextStyle(color: Colors.white),
-        bodyMedium: TextStyle(color: Color(0xFFCBD5E1)), // Slate 300 for body
+        bodyMedium: TextStyle(color: SkillSwapColors.textBodyDark),
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
@@ -101,33 +122,28 @@ class SkillSwapTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: raspberry,
+          backgroundColor: SkillSwapColors.raspberry,
           foregroundColor: Colors.white,
           minimumSize: const Size(double.infinity, 56),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           elevation: 8,
-          shadowColor: raspberry.withOpacity(0.5),
-          textStyle: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
+          shadowColor: SkillSwapColors.raspberry.withOpacity(0.5),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: Colors.white.withOpacity(0.05),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
         ),
       ),
       cardTheme: CardThemeData(
-        color: surfaceBlue,
+        color: SkillSwapColors.surfaceDark,
         elevation: 4,
-        shadowColor: Colors.black.withOpacity(0.4),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-        ),
-      ),
-      iconTheme: const IconThemeData(color: Colors.white70),
-      listTileTheme: const ListTileThemeData(
-        iconColor: Colors.white70,
-        textColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       ),
     );
   }
 }
+

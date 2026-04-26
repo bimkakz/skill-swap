@@ -3,16 +3,97 @@ import '../theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'chat_detail_screen.dart';
+import 'user_profile_screen.dart';
 
 class SkillExchangeScreen extends StatelessWidget {
   const SkillExchangeScreen({super.key});
 
+  static const Map<String, List<String>> categoryKeywords = {
+    'Technology': [
+      'python',
+      'programming',
+      'software',
+      'flutter',
+      'dart',
+      'coding',
+      'web',
+      'app',
+      'it',
+      'ai',
+      'computer',
+      'science',
+      'developer',
+      'engineering'
+    ],
+    'Languages': [
+      'english',
+      'spanish',
+      'russian',
+      'french',
+      'german',
+      'chinese',
+      'japanese',
+      'language',
+      'translate',
+      'linguistics'
+    ],
+    'Music': [
+      'guitar',
+      'piano',
+      'singing',
+      'music',
+      'instrument',
+      'drums',
+      'violin',
+      'theory',
+      'vocals',
+      'composition'
+    ],
+    'Arts & Crafts': [
+      'painting',
+      'drawing',
+      'art',
+      'craft',
+      'design',
+      'photography',
+      'sketch',
+      'sculpture',
+      'creative',
+      'diy'
+    ],
+    'Fitness': [
+      'gym',
+      'yoga',
+      'workout',
+      'fitness',
+      'training',
+      'sport',
+      'exercise',
+      'bodybuilding',
+      'health',
+      'athlete'
+    ],
+    'Cooking': [
+      'cooking',
+      'baking',
+      'chef',
+      'food',
+      'recipe',
+      'kitchen',
+      'culinary',
+      'gastronomy',
+      'nutrition'
+    ],
+  };
+
   @override
   Widget build(BuildContext context) {
+    final filterCategory = ModalRoute.of(context)?.settings.arguments as String?;
+
     return Scaffold(
       appBar: AppBar(
         title:
-            const Text('Skill Exchange', style: TextStyle(color: Colors.white)),
+            Text(filterCategory != null ? '$filterCategory' : 'Skill Exchange', style: const TextStyle(color: Colors.white)),
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
@@ -47,6 +128,23 @@ class SkillExchangeScreen extends StatelessWidget {
                 final theirTeaching = (data['teaching_skills'] as List<dynamic>?)?.map((e)=>e.toString().toLowerCase()).toList() ?? [];
                 final theirLearning = (data['learning_skills'] as List<dynamic>?)?.map((e)=>e.toString().toLowerCase()).toList() ?? [];
                 
+                if (filterCategory != null) {
+                  final catLower = filterCategory.toLowerCase();
+                  final keywords = categoryKeywords[filterCategory] ?? [catLower];
+
+                  bool matches(List<String> skills) {
+                    return skills.any((s) {
+                      final sLower = s.toLowerCase();
+                      if (sLower.contains(catLower) || catLower.contains(sLower)) {
+                        return true;
+                      }
+                      return keywords.any((k) => sLower.contains(k));
+                    });
+                  }
+
+                  return matches(theirTeaching) || matches(theirLearning);
+                }
+
                 // Smart Match: Only show users if they teach what I want to learn, OR they want to learn what I teach
                 final match = myLearning.any((s) => theirTeaching.contains(s)) || myTeaching.any((s) => theirLearning.contains(s));
                 
@@ -92,7 +190,7 @@ class SkillExchangeScreen extends StatelessWidget {
 
   Widget _buildUserCard(String userId, Map<String, dynamic> user, BuildContext context) {
     final name = user['name']?.toString() ?? 'User';
-    final rating = user['rating']?.toString() ?? '0.0';
+    final rating = double.tryParse(user['rating']?.toString() ?? '0.0')?.toStringAsFixed(1) ?? '0.0';
     final points = user['points']?.toString() ?? '0';
     final bio = user['bio']?.toString() ?? 'Enthusiastic learner looking to exchange skills.';
     final initials = name.isNotEmpty ? name[0].toUpperCase() : 'U';
@@ -100,19 +198,24 @@ class SkillExchangeScreen extends StatelessWidget {
     final List<String> offering = (user['teaching_skills'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
     final List<String> wanting = (user['learning_skills'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 2))
-        ],
-      ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(20),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => UserProfileScreen(userId: userId, userData: user)));
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 20),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))
+          ],
+          border: Border.all(color: Theme.of(context).dividerColor),
+        ),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(20),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -151,7 +254,7 @@ class SkillExchangeScreen extends StatelessWidget {
                       const SizedBox(height: 8),
                       Text(bio,
                           style: TextStyle(
-                              color: Colors.grey.shade600, fontSize: 13),
+                              color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7), fontSize: 13),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis),
                     ],
@@ -182,7 +285,7 @@ class SkillExchangeScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-                color: Theme.of(context).brightness == Brightness.dark ? Colors.white.withOpacity(0.05) : Colors.grey.shade50,
+                color: Theme.of(context).brightness == Brightness.dark ? Colors.white.withOpacity(0.02) : Colors.grey.shade50,
                 borderRadius:
                     const BorderRadius.vertical(bottom: Radius.circular(24))),
             child: Row(
@@ -200,7 +303,7 @@ class SkillExchangeScreen extends StatelessWidget {
                     style: OutlinedButton.styleFrom(
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
-                      side: BorderSide(color: Colors.grey.shade300),
+                      side: BorderSide(color: Theme.of(context).dividerColor),
                     ),
                   ),
                 ),
@@ -212,14 +315,14 @@ class SkillExchangeScreen extends StatelessWidget {
                   style: OutlinedButton.styleFrom(
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
-                    side: BorderSide(color: Colors.amber.shade300),
-                    foregroundColor: Colors.amber.shade700,
+                    side: const BorderSide(color: Colors.amber),
+                    foregroundColor: Colors.amber,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () {},
+                    onPressed: () => _handleExchange(context, userId, name),
                     icon: const Icon(Icons.repeat),
                     label: const Text('Exchange'),
                     style: ElevatedButton.styleFrom(
@@ -233,6 +336,7 @@ class SkillExchangeScreen extends StatelessWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -259,6 +363,7 @@ class SkillExchangeScreen extends StatelessWidget {
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
+          runSpacing: 8,
           children: skills
               .map((s) => Container(
                     padding:
@@ -277,5 +382,13 @@ class SkillExchangeScreen extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  void _handleExchange(BuildContext context, String partnerId, String partnerName) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => ChatDetailScreen(
+      receiverId: partnerId,
+      receiverName: partnerName,
+      isExchangeMode: true,
+    )));
   }
 }

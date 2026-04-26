@@ -4,6 +4,7 @@ import '../widgets/bottom_nav_bar.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../main.dart'; // Import themeNotifier
+import 'history_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -33,7 +34,7 @@ class ProfileScreen extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 24.0),
                   child: Column(
                     children: [
-                      _buildPointsSection(userData),
+                      _buildPointsSection(userData, context),
                       const SizedBox(height: 24),
                       _buildSkillsSection(userData, context),
                       const SizedBox(height: 24),
@@ -47,7 +48,6 @@ class ProfileScreen extends StatelessWidget {
           );
         },
       ),
-      bottomNavigationBar: const BottomNavBar(currentIndex: 3),
     );
   }
 
@@ -106,7 +106,7 @@ class ProfileScreen extends StatelessWidget {
             const SizedBox(height: 4),
             const Text('Member since joining', style: TextStyle(color: Colors.white54, fontSize: 12)),
             const SizedBox(height: 24),
-            _buildStatsBar(userData),
+            _buildStatsBar(userData, context),
             const SizedBox(height: 24),
           ],
         ),
@@ -114,50 +114,57 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatsBar(Map<String, dynamic> userData) {
-    final exchanges = userData['exchanges']?.toString() ?? '0';
+  Widget _buildStatsBar(Map<String, dynamic> userData, BuildContext context) {
+    final exchanges = (userData['exchanges'] ?? 0).toString();
     final lessons = userData['lessons']?.toString() ?? '0';
-    final rating = userData['rating']?.toString() ?? '0.0';
+    final rating = double.tryParse(userData['rating']?.toString() ?? '0.0')?.toStringAsFixed(1) ?? '0.0';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(24),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 5))],
+        boxShadow: [BoxShadow(color: isDark ? Colors.black26 : Colors.black12, blurRadius: 10, offset: const Offset(0, 5))],
+        border: Border.all(color: isDark ? Colors.white10 : Colors.transparent),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildStatItem('Exchanges', exchanges, Icons.repeat, SkillSwapColors.primary),
-          _buildStatItem('Lessons', lessons, Icons.school, SkillSwapColors.secondary),
-          _buildStatItem('Rating', rating, Icons.star, Colors.amber),
+          _buildStatItem('Exchanges', exchanges, Icons.repeat, SkillSwapColors.primary, context),
+          _buildStatItem('Lessons', lessons, Icons.school, SkillSwapColors.secondary, context),
+          _buildStatItem('Rating', rating, Icons.star, Colors.amber, context),
         ],
       ),
     );
   }
 
-  Widget _buildStatItem(String label, String value, IconData icon, Color color) {
+  Widget _buildStatItem(String label, String value, IconData icon, Color color, BuildContext context) {
     return Column(
       children: [
         Icon(icon, color: color, size: 24),
         const SizedBox(height: 4),
         Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        Text(label, style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodyMedium?.color)),
       ],
     );
   }
 
-  Widget _buildPointsSection(Map<String, dynamic> userData) {
+  Widget _buildPointsSection(Map<String, dynamic> userData, BuildContext context) {
     final points = userData['points']?.toString() ?? '0';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [Color(0xFFFFF8E1), Color(0xFFFFF3E0)]),
+        gradient: LinearGradient(
+          colors: isDark 
+            ? [Colors.amber.withOpacity(0.1), Colors.orange.withOpacity(0.05)]
+            : [const Color(0xFFFFF8E1), const Color(0xFFFFF3E0)]
+        ),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.amber.shade200),
+        border: Border.all(color: Colors.amber.withOpacity(isDark ? 0.3 : 1.0)),
       ),
       child: Column(
         children: [
@@ -175,32 +182,11 @@ class ProfileScreen extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(color: Colors.amber, borderRadius: BorderRadius.circular(16)),
                 child: Text(points, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 24),
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 24),
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildStatItem('12', 'Exchanges', Colors.white),
-                  _buildStatItem('4.9', 'Rating', Colors.white),
-                  _buildStatItem(userData['points']?.toString() ?? '0', 'Points', Colors.white),
-                ],
               ),
-            ),
-            const SizedBox(height: 24),
-          ],
-        ),
+            ],
+          ),
+        ],
       ),
-    );
-  }
-
-  Widget _buildStatItem(String value, String label, Color color) {
-    return Column(
-      children: [
-        Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)),
-        Text(label, style: TextStyle(color: color.withOpacity(0.7), fontSize: 12)),
-      ],
     );
   }
 
@@ -210,7 +196,12 @@ class ProfileScreen extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(24), boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))]),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor, 
+        borderRadius: BorderRadius.circular(24), 
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))],
+        border: Border.all(color: Theme.of(context).dividerColor),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -220,7 +211,7 @@ class ProfileScreen extends StatelessWidget {
               const Text('My Skills', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               IconButton(
                 onPressed: () => _showAddSkillDialog(context, 'Teaching'),
-                icon: Icon(Icons.add_circle, color: Theme.of(context).primaryColor),
+                icon: Icon(Icons.add_circle, color: Theme.of(context).colorScheme.primary),
               ),
             ],
           ),
@@ -239,10 +230,13 @@ class ProfileScreen extends StatelessWidget {
 
   void _showAddSkillDialog(BuildContext context, String type) {
     final TextEditingController controller = TextEditingController();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
+          backgroundColor: Theme.of(context).cardColor,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Text('Add $type Skill'),
           content: TextField(
@@ -251,7 +245,7 @@ class ProfileScreen extends StatelessWidget {
             decoration: InputDecoration(
               hintText: 'E.g. Spanish, React, Piano...',
               filled: true,
-              fillColor: Colors.grey.shade100,
+              fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade100,
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
             ),
           ),
@@ -269,6 +263,7 @@ class ProfileScreen extends StatelessWidget {
                 }
                 if (context.mounted) Navigator.pop(context);
               },
+              style: ElevatedButton.styleFrom(minimumSize: const Size(80, 40)),
               child: const Text('Add'),
             ),
           ],
@@ -294,7 +289,7 @@ class ProfileScreen extends StatelessWidget {
             )),
             GestureDetector(
               onTap: () => _showAddSkillDialog(context, label),
-              child: const CircleAvatar(radius: 14, backgroundColor: Colors.black26, child: Icon(Icons.add, size: 16, color: Colors.white)),
+              child: CircleAvatar(radius: 14, backgroundColor: Theme.of(context).dividerColor, child: const Icon(Icons.add, size: 16, color: Colors.white)),
             ),
           ],
         ),
@@ -304,12 +299,17 @@ class ProfileScreen extends StatelessWidget {
 
   Widget _buildMenuSection(BuildContext context, Map<String, dynamic> userData) {
     return Container(
-      decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(24), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 2))]),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor, 
+        borderRadius: BorderRadius.circular(24), 
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))],
+        border: Border.all(color: Theme.of(context).dividerColor),
+      ),
       child: Column(
         children: [
           _buildMenuItem(Icons.edit, 'Edit Profile', onTap: () => _editProfile(context, userData), context: context),
-          _buildMenuItem(Icons.repeat, 'My Exchanges', context: context),
-          _buildMenuItem(Icons.school, 'My Lessons', context: context),
+          _buildMenuItem(Icons.repeat, 'My Exchanges', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HistoryScreen(type: 'exchange'))), context: context),
+          _buildMenuItem(Icons.school, 'My Lessons', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HistoryScreen(type: 'lesson'))), context: context),
           _buildMenuItem(Icons.logout, 'Log Out', isLast: true, color: Colors.red, onTap: () async {
             await FirebaseAuth.instance.signOut();
             if (context.mounted) {
@@ -328,6 +328,7 @@ class ProfileScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        backgroundColor: Theme.of(context).cardColor,
         title: const Text('Edit Profile'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -351,6 +352,7 @@ class ProfileScreen extends StatelessWidget {
               }
               if (context.mounted) Navigator.pop(context);
             },
+            style: ElevatedButton.styleFrom(minimumSize: const Size(80, 40)),
             child: const Text('Save'),
           ),
         ],
@@ -359,12 +361,12 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Widget _buildMenuItem(IconData icon, String label, {bool isLast = false, Color? color, VoidCallback? onTap, required BuildContext context}) {
-    final Color effectiveColor = color ?? Theme.of(context).textTheme.bodyLarge?.color ?? SkillSwapColors.textHeader;
+    final Color effectiveColor = color ?? Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
     return ListTile(
       onTap: onTap,
       leading: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Theme.of(context).brightness == Brightness.dark ? Colors.white10 : Colors.grey.shade100, shape: BoxShape.circle), child: Icon(icon, color: effectiveColor, size: 20)),
       title: Text(label, style: TextStyle(color: effectiveColor, fontWeight: FontWeight.w500)),
-      trailing: const Icon(Icons.chevron_right, size: 20),
+      trailing: Icon(Icons.chevron_right, size: 20, color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5)),
       shape: isLast ? null : Border(bottom: BorderSide(color: Theme.of(context).dividerColor)),
     );
   }

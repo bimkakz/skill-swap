@@ -17,7 +17,7 @@ class MessagesScreen extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(),
+            _buildHeader(context),
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance.collection('users').snapshots(),
@@ -40,32 +40,41 @@ class MessagesScreen extends StatelessWidget {
           ],
         ),
       ),
-      bottomNavigationBar: const BottomNavBar(currentIndex: 2),
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(24),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(32)),
         boxShadow: [
-          BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))
         ],
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Messages',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => Navigator.pop(context),
+              ),
+              const Text('Messages',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            ],
+          ),
           const SizedBox(height: 24),
           TextField(
             decoration: InputDecoration(
               hintText: 'Search conversations...',
               prefixIcon: const Icon(Icons.search, color: Colors.grey),
               filled: true,
-              fillColor: Colors.grey.shade100,
+              fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade100,
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide.none),
@@ -90,9 +99,10 @@ class MessagesScreen extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))],
+          border: Border.all(color: Theme.of(context).dividerColor),
         ),
         child: Row(
           children: [
@@ -108,7 +118,7 @@ class MessagesScreen extends StatelessWidget {
                 children: [
                    Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                    const SizedBox(height: 4),
-                   Text('Tap to chat', style: TextStyle(color: Colors.grey.shade600, fontSize: 14)),
+                   Text('Tap to chat', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.6), fontSize: 14)),
                 ],
               ),
             ),

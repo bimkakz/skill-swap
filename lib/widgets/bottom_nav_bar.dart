@@ -3,7 +3,8 @@ import '../theme.dart';
 
 class BottomNavBar extends StatelessWidget {
   final int currentIndex;
-  const BottomNavBar({super.key, required this.currentIndex});
+  final Function(int)? onTap;
+  const BottomNavBar({super.key, required this.currentIndex, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -16,20 +17,20 @@ class BottomNavBar extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildNavItem(context, Icons.home, 'Home', currentIndex == 0, '/home'),
-          _buildNavItem(context, Icons.explore, 'Explore', currentIndex == 1, '/explore'),
-          _buildNavItem(context, Icons.chat_bubble, 'Messages', currentIndex == 2, '/messages'),
-          _buildNavItem(context, Icons.person, 'Profile', currentIndex == 3, '/profile'),
+          _buildNavItem(context, Icons.home, 'Home', currentIndex == 0, 0),
+          _buildNavItem(context, Icons.explore, 'Explore', currentIndex == 1, 1),
+          _buildNavItem(context, Icons.auto_awesome, 'AI Tutor', currentIndex == 2, 2),
+          _buildNavItem(context, Icons.person, 'Profile', currentIndex == 3, 3),
         ],
       ),
     );
   }
 
-  Widget _buildNavItem(BuildContext context, IconData icon, String label, bool active, String route) {
+  Widget _buildNavItem(BuildContext context, IconData icon, String label, bool active, int index) {
     return GestureDetector(
       onTap: () {
-        if (!active) {
-          Navigator.pushReplacementNamed(context, route);
+        if (!active && onTap != null) {
+          onTap!(index);
         }
       },
       child: Column(
