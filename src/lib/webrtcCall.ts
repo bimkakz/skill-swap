@@ -13,22 +13,12 @@ const ICE_SERVERS = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
-    // Free TURN relay — needed when both users are behind NAT (mobile + laptop)
-    {
-      urls: 'turn:openrelay.metered.ca:80',
-      username: 'openrelayproject',
-      credential: 'openrelayproject',
-    },
-    {
-      urls: 'turn:openrelay.metered.ca:443',
-      username: 'openrelayproject',
-      credential: 'openrelayproject',
-    },
-    {
-      urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-      username: 'openrelayproject',
-      credential: 'openrelayproject',
-    },
+    // Metered free TURN — works across mobile/desktop NAT
+    { urls: 'turn:a.relay.metered.ca:80',    username: 'free', credential: 'free' },
+    { urls: 'turn:a.relay.metered.ca:443',   username: 'free', credential: 'free' },
+    { urls: 'turn:a.relay.metered.ca:443?transport=tcp', username: 'free', credential: 'free' },
+    // numb.viagenie.ca fallback
+    { urls: 'turn:numb.viagenie.ca', username: 'webrtc@live.com', credential: 'muazkh' },
   ],
 };
 

@@ -153,8 +153,8 @@ export default function Call() {
       console.error('Signaling error:', err);
     }
 
-    // Fallback: show connected after 10 s even if event doesn't fire
-    setTimeout(() => setStatus((s) => s === 'connecting' ? 'connected' : s), 10000);
+    // Fallback: show connected after 6 s even if connectionstate event doesn't fire
+    setTimeout(() => setStatus((s) => s === 'connecting' ? 'connected' : s), 6000);
   }
 
   // ── Cleanup ──────────────────────────────────────────────────────────────────
