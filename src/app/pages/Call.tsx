@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { PhoneOff, Mic, MicOff, Video, VideoOff, Volume2, VolumeX, MonitorUp, MonitorOff } from 'lucide-react';
+import { PhoneOff, Mic, MicOff, Video, VideoOff, Volume2, VolumeX } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { initiateCall, acceptCall, endCall, listenCall, CallDoc } from '../../lib/callSignaling';
 import { createPC, setupCallerSignaling, setupReceiverSignaling, cleanupCallData } from '../../lib/webrtcCall';
@@ -31,9 +31,6 @@ export default function Call() {
   const [videoOff,    setVideoOff]    = useState(false);
   const [speakerOn,   setSpeakerOn]   = useState(true);
   const [hasRemote,   setHasRemote]   = useState(false);
-  const [sharing,     setSharing]     = useState(false);
-  const [shareError,  setShareError]  = useState('');
-  const screenStreamRef = useRef<MediaStream | null>(null);
 
   const displayName = isCaller ? receiverName : (callData?.callerName || 'User');
 
@@ -167,7 +164,6 @@ export default function Call() {
     hangingUpRef.current = true;
 
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
-    screenStreamRef.current?.getTracks().forEach((t) => t.stop());
     pcRef.current?.close();
     pcRef.current = null;
 
@@ -182,51 +178,6 @@ export default function Call() {
 
   const hangUp = () => leaveCall(true);
 
-  const stopSharing = async () => {
-    const pc = pcRef.current;
-    screenStreamRef.current?.getTracks().forEach((t) => t.stop());
-    screenStreamRef.current = null;
-    const camTrack = localStreamRef.current?.getVideoTracks()[0];
-    if (pc && camTrack) {
-      const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
-      await sender?.replaceTrack(camTrack);
-      if (localVideoRef.current) localVideoRef.current.srcObject = localStreamRef.current;
-    }
-    setSharing(false);
-  };
-
-  const toggleShare = async () => {
-    if (sharing) { stopSharing(); return; }
-
-    if (!(navigator.mediaDevices as any).getDisplayMedia) {
-      setShareError('Ваш браузер не поддерживает демонстрацию экрана');
-      setTimeout(() => setShareError(''), 3000);
-      return;
-    }
-
-    try {
-      const screen: MediaStream = await (navigator.mediaDevices as any).getDisplayMedia({ video: true, audio: true });
-      screenStreamRef.current = screen;
-      const screenTrack = screen.getVideoTracks()[0];
-      const pc = pcRef.current;
-      if (pc) {
-        const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
-        if (sender) {
-          await sender.replaceTrack(screenTrack);
-        } else {
-          pc.addTrack(screenTrack, screen);
-        }
-      }
-      if (localVideoRef.current) localVideoRef.current.srcObject = screen;
-      screenTrack.onended = () => stopSharing();
-      setSharing(true);
-    } catch (err: any) {
-      if (err?.name !== 'NotAllowedError') {
-        setShareError('Не удалось начать демонстрацию экрана');
-        setTimeout(() => setShareError(''), 3000);
-      }
-    }
-  };
 
   const toggleMute = () => {
     localStreamRef.current?.getAudioTracks().forEach((t) => { t.enabled = muted; });
@@ -325,13 +276,6 @@ export default function Call() {
         </div>
       )}
 
-      {/* Error toast */}
-      {shareError && (
-        <div className="absolute top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-sm px-4 py-2 rounded-xl z-50 shadow-lg">
-          {shareError}
-        </div>
-      )}
-
       {/* Controls — only when connected */}
       {status === 'connected' && (
         <div className="absolute bottom-0 left-0 right-0 pb-10 pt-6 bg-gradient-to-t from-black/70 to-transparent z-30">
@@ -384,17 +328,6 @@ export default function Call() {
               </div>
             )}
 
-            <div className="flex flex-col items-center gap-1">
-              <button
-                onClick={toggleShare}
-                className={`w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-md ${
-                  sharing ? 'bg-[#4F46E5]' : 'bg-white/20 hover:bg-white/30'
-                }`}
-              >
-                {sharing ? <MonitorOff className="w-6 h-6 text-white" /> : <MonitorUp className="w-6 h-6 text-white" />}
-              </button>
-              <span className="text-xs text-white/50">{sharing ? 'Стоп' : 'Экран'}</span>
-            </div>
           </div>
         </div>
       )}
