@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router';
 import { BottomNav } from '../components/BottomNav';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
 import { PointsBalance } from '../components/PointsBalance';
-import { StatusBar } from '../components/StatusBar';
 
 const recommendations = [
   {
@@ -39,15 +38,10 @@ export default function Home() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pb-24">
       <div className="max-w-md mx-auto">
-        {/* Status Bar */}
-        <div className="bg-white">
-          <StatusBar theme="light" />
-        </div>
-
         {/* Header */}
-        <div className="bg-white px-6 pb-6 rounded-b-[32px] shadow-sm">
+        <div className="bg-white px-6 pt-12 pb-6 rounded-b-[32px] shadow-sm">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-2xl text-gray-900">Hello, Alex 👋</h1>

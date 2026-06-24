@@ -2,7 +2,6 @@ import { Settings, Star, Repeat, GraduationCap, Award, Edit, ChevronRight, LogOu
 import { useNavigate } from 'react-router';
 import { BottomNav } from '../components/BottomNav';
 import { PointsBalance } from '../components/PointsBalance';
-import { StatusBar } from '../components/StatusBar';
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -38,15 +37,10 @@ export default function Profile() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pb-24">
       <div className="max-w-md mx-auto">
-        {/* Status Bar */}
-        <div className="bg-gradient-to-br from-[#4F46E5] to-[#6366F1]">
-          <StatusBar theme="dark" />
-        </div>
-
         {/* Header */}
-        <div className="bg-gradient-to-br from-[#4F46E5] to-[#6366F1] px-6 pb-20 rounded-b-[32px] shadow-lg">
+        <div className="bg-gradient-to-br from-[#4F46E5] to-[#6366F1] px-6 pt-12 pb-20 rounded-b-[32px] shadow-lg">
           <div className="flex justify-end mb-4">
             <button className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors">
               <Settings className="w-5 h-5 text-white" />
