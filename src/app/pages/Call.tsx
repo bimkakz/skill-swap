@@ -2,13 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { PhoneOff, Mic, MicOff, Video, VideoOff, Volume2, VolumeX } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
-import {
-  initiateCall,
-  acceptCall,
-  endCall,
-  listenCall,
-  CallDoc,
-} from '../../lib/callSignaling';
+import { initiateCall, acceptCall, endCall, listenCall, CallDoc } from '../../lib/callSignaling';
 import { createPC, setupCallerSignaling, setupReceiverSignaling, cleanupCallData } from '../../lib/webrtcCall';
 
 export default function Call() {
@@ -16,39 +10,38 @@ export default function Call() {
   const [params] = useSearchParams();
   const { user: currentUser } = useAuth();
 
-  const receiverId = params.get('userId') || '';
+  const receiverId   = params.get('userId')   || '';
   const receiverName = params.get('userName') || 'User';
-  const type = (params.get('type') || 'video') as 'audio' | 'video';
+  const type         = (params.get('type')    || 'video') as 'audio' | 'video';
   const incomingCallId = params.get('callId') || '';
+  const isCaller = !incomingCallId;
 
-  const localVideoRef = useRef<HTMLVideoElement>(null);
+  const localVideoRef  = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
-  const pcRef = useRef<RTCPeerConnection | null>(null);
+  const pcRef          = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
-  const startedRef = useRef(false);
+  const startedRef     = useRef(false);
+  const hangingUpRef   = useRef(false); // prevent double hangup
 
-  const [callId, setCallId] = useState('');
+  const [callId,   setCallId]   = useState('');
   const [callData, setCallData] = useState<CallDoc | null>(null);
-  const [status, setStatus] = useState<'calling' | 'connecting' | 'connected' | 'declined'>('calling');
-  const [muted, setMuted] = useState(false);
-  const [videoOff, setVideoOff] = useState(false);
-  const [speakerOn, setSpeakerOn] = useState(true);
-  const [hasRemoteVideo, setHasRemoteVideo] = useState(false);
+  const [status,   setStatus]   = useState<'calling'|'connecting'|'connected'|'declined'>('calling');
+  const [muted,      setMuted]      = useState(false);
+  const [videoOff,   setVideoOff]   = useState(false);
+  const [speakerOn,  setSpeakerOn]  = useState(true);
+  const [hasRemote,  setHasRemote]  = useState(false);
 
-  const isCaller = !incomingCallId;
   const displayName = isCaller ? receiverName : (callData?.callerName || 'User');
 
-  // Step 1: Init signaling doc
+  // ── Step 1: create / join signaling doc ─────────────────────────────────────
   useEffect(() => {
     if (!currentUser) return;
     if (isCaller) {
       initiateCall(
         currentUser.uid,
         currentUser.displayName || currentUser.email || 'User',
-        receiverId,
-        receiverName,
-        type
+        receiverId, receiverName, type
       ).then(({ id }) => setCallId(id));
     } else {
       setCallId(incomingCallId);
@@ -56,22 +49,28 @@ export default function Call() {
     }
   }, [currentUser]);
 
-  // Step 2: Listen for signaling state changes
+  // ── Step 2: watch signaling doc ──────────────────────────────────────────────
   useEffect(() => {
     if (!callId || !currentUser) return;
     const unsub = listenCall(callId, (data) => {
-      if (!data) { hangUp(); return; }
-      setCallData(data);
-      if (isCaller && data.status === 'declined') {
-        setStatus('declined');
-        setTimeout(() => navigate(-1), 2000);
+      if (!data) {
+        // Doc deleted by other side — leave quietly
+        if (!hangingUpRef.current) leaveCall(false);
         return;
       }
-      // Start WebRTC once receiver has accepted
-      if (!startedRef.current && (
-        (isCaller && data.status === 'accepted') ||
-        (!isCaller && (data.status === 'accepted' || data.status === 'calling'))
-      )) {
+      setCallData(data);
+
+      if (isCaller && data.status === 'declined') {
+        setStatus('declined');
+        setTimeout(() => leaveCall(false), 2000);
+        return;
+      }
+
+      const shouldStart =
+        (isCaller  && data.status === 'accepted') ||
+        (!isCaller && (data.status === 'accepted' || data.status === 'calling'));
+
+      if (shouldStart && !startedRef.current) {
         startedRef.current = true;
         startWebRTC(callId);
       }
@@ -79,149 +78,157 @@ export default function Call() {
     return unsub;
   }, [callId, currentUser]);
 
-  // 30s timeout for unanswered outgoing calls — cancelled once WebRTC starts
-  const noAnswerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // ── 30 s no-answer timeout ───────────────────────────────────────────────────
   useEffect(() => {
     if (!isCaller || !callId) return;
-    noAnswerTimerRef.current = setTimeout(() => {
-      if (!startedRef.current) {
-        endCall(callId).then(() => navigate(-1));
-      }
+    const t = setTimeout(() => {
+      if (!startedRef.current) hangUp();
     }, 30000);
-    return () => {
-      if (noAnswerTimerRef.current) clearTimeout(noAnswerTimerRef.current);
-    };
+    return () => clearTimeout(t);
   }, [callId]);
 
+  // ── WebRTC setup ─────────────────────────────────────────────────────────────
   async function startWebRTC(id: string) {
     setStatus('connecting');
-    try {
-      // Try with ideal constraints first, fall back to basic if browser rejects
-      let stream: MediaStream;
+
+    // Get local media — try strict then lenient then audio-only
+    let stream: MediaStream | null = null;
+    for (const constraints of [
+      { audio: true, video: type === 'video' ? { facingMode: { ideal: 'user' } } : false },
+      { audio: true, video: type === 'video' },
+      { audio: true, video: false },
+    ]) {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: true,
-          video: type === 'video' ? { facingMode: { ideal: 'user' } } : false,
-        });
-      } catch {
-        // Fallback: just ask for audio/video without extra constraints
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: true,
-          video: type === 'video',
-        });
-      }
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        break;
+      } catch { /* try next */ }
+    }
+
+    if (!stream) {
+      console.warn('getUserMedia failed — continuing without local media');
+    } else {
       localStreamRef.current = stream;
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
+      if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+    }
+
+    const pc = createPC();
+    pcRef.current = pc;
+
+    // ontrack must be wired BEFORE signaling
+    pc.ontrack = (e) => {
+      const s = e.streams[0];
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = s;
+        remoteVideoRef.current.play().catch(() => {});
+        setHasRemote(true);
       }
+      if (remoteAudioRef.current) {
+        remoteAudioRef.current.srcObject = s;
+        remoteAudioRef.current.play().catch(() => {});
+      }
+    };
 
-      const pc = createPC();
-      pcRef.current = pc;
+    pc.onconnectionstatechange = () => {
+      console.log('ICE state:', pc.connectionState);
+      if (pc.connectionState === 'connected') {
+        setStatus('connected');
+      }
+      // Only hang up on 'failed', not on transient 'disconnected'
+      if (pc.connectionState === 'failed') {
+        hangUp();
+      }
+    };
 
-      // ontrack MUST be set before signaling so we don't miss early track events
-      pc.ontrack = (e) => {
-        const remoteStream = e.streams[0];
-        if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = remoteStream;
-          remoteVideoRef.current.play().catch(() => {});
-          setHasRemoteVideo(true);
-        }
-        if (remoteAudioRef.current) {
-          remoteAudioRef.current.srcObject = remoteStream;
-          remoteAudioRef.current.play().catch(() => {});
-        }
-      };
+    if (stream) {
+      stream.getTracks().forEach((t) => pc.addTrack(t, stream!));
+    }
 
-      // Tracks MUST be added before creating offer/answer
-      stream.getTracks().forEach((t) => pc.addTrack(t, stream));
-
+    try {
       if (isCaller) {
         await setupCallerSignaling(pc, id);
       } else {
         await setupReceiverSignaling(pc, id);
       }
-
-      pc.onconnectionstatechange = () => {
-        if (pc.connectionState === 'connected') setStatus('connected');
-        if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') hangUp();
-      };
-
-      // Fallback: show connected after 8s
-      setTimeout(() => setStatus((s) => s === 'connecting' ? 'connected' : s), 8000);
     } catch (err) {
-      console.error('WebRTC error:', err);
-      hangUp();
+      console.error('Signaling error:', err);
     }
+
+    // Fallback: show connected after 10 s even if event doesn't fire
+    setTimeout(() => setStatus((s) => s === 'connecting' ? 'connected' : s), 10000);
   }
 
-  const hangUp = async () => {
+  // ── Cleanup ──────────────────────────────────────────────────────────────────
+  /** leaveCall(deleteDoc) — set deleteDoc=false when other side already deleted it */
+  async function leaveCall(deleteDoc = true) {
+    if (hangingUpRef.current) return;
+    hangingUpRef.current = true;
+
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
     pcRef.current?.close();
     pcRef.current = null;
-    if (callId) {
-      await cleanupCallData(callId);
-      await endCall(callId);
+
+    if (deleteDoc && callId) {
+      try {
+        await cleanupCallData(callId);
+        await endCall(callId);
+      } catch { /* already deleted */ }
     }
     navigate(-1);
-  };
+  }
+
+  const hangUp = () => leaveCall(true);
 
   const toggleMute = () => {
-    localStreamRef.current?.getAudioTracks().forEach((t) => { t.enabled = !t.enabled; });
+    localStreamRef.current?.getAudioTracks().forEach((t) => { t.enabled = muted; });
     setMuted((v) => !v);
   };
 
   const toggleVideo = () => {
-    localStreamRef.current?.getVideoTracks().forEach((t) => { t.enabled = !t.enabled; });
+    localStreamRef.current?.getVideoTracks().forEach((t) => { t.enabled = videoOff; });
     setVideoOff((v) => !v);
   };
 
   const toggleSpeaker = async () => {
-    const video = remoteVideoRef.current as HTMLVideoElement & { setSinkId?: (id: string) => Promise<void> };
-    if (video?.setSinkId) {
+    const el = remoteAudioRef.current as HTMLAudioElement & { setSinkId?: (id: string) => Promise<void> };
+    if (el?.setSinkId) {
       try {
         const devices = await navigator.mediaDevices.enumerateDevices();
         const outputs = devices.filter((d) => d.kind === 'audiooutput');
         const target = speakerOn
           ? outputs.find((d) => d.label.toLowerCase().includes('earpiece') || d.deviceId !== 'default')
           : outputs.find((d) => d.deviceId === 'default');
-        if (target) await video.setSinkId(target.deviceId);
+        if (target) await el.setSinkId(target.deviceId);
       } catch { /* not supported */ }
     }
     setSpeakerOn((v) => !v);
   };
 
+  // ── Render ───────────────────────────────────────────────────────────────────
   return (
-    <div className="fixed inset-0 bg-gray-900 flex flex-col">
-      {/* Hidden audio element — ensures remote audio plays even on audio-only calls */}
+    <div className="fixed inset-0 bg-gray-900 flex flex-col select-none">
+      {/* Hidden audio for remote stream */}
       <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
 
       {/* Remote video (full screen) */}
       <video
         ref={remoteVideoRef}
-        autoPlay
-        playsInline
-        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
-          hasRemoteVideo && status === 'connected' ? 'opacity-100' : 'opacity-0'
+        autoPlay playsInline
+        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${
+          hasRemote && status === 'connected' ? 'opacity-100' : 'opacity-0'
         }`}
       />
 
-      {/* Local video (picture-in-picture, top-right) */}
+      {/* Local video (PiP) */}
       {type === 'video' && (
         <video
           ref={localVideoRef}
-          autoPlay
-          playsInline
-          muted
+          autoPlay playsInline muted
           className={`absolute top-16 right-4 w-28 h-40 object-cover rounded-2xl border-2 border-white/30 shadow-xl z-20 transition-opacity ${
             status === 'connected' ? 'opacity-100' : 'opacity-0'
           }`}
         />
       )}
-
-      {/* Audio-only: hidden local video still needed for stream */}
-      {type === 'audio' && (
-        <video ref={localVideoRef} autoPlay playsInline muted className="hidden" />
-      )}
+      {type === 'audio' && <video ref={localVideoRef} autoPlay playsInline muted className="hidden" />}
 
       {/* Waiting / connecting overlay */}
       {(status === 'calling' || status === 'connecting') && (
@@ -229,24 +236,20 @@ export default function Call() {
           <div className="w-28 h-28 rounded-full bg-gradient-to-br from-[#4F46E5] to-[#06B6D4] flex items-center justify-center mb-6 text-5xl font-bold text-white shadow-xl">
             {displayName.charAt(0).toUpperCase()}
           </div>
-          <p className="text-white text-2xl font-medium mb-2">{displayName}</p>
-          <p className="text-gray-400 text-sm animate-pulse mt-1">
-            {status === 'calling'
-              ? (type === 'video' ? 'Видеозвонок...' : 'Звонок...')
-              : 'Подключение...'}
+          <p className="text-white text-2xl font-medium mb-1">{displayName}</p>
+          <p className="text-gray-400 text-sm animate-pulse">
+            {status === 'calling' ? (type === 'video' ? 'Видеозвонок...' : 'Звонок...') : 'Подключение...'}
           </p>
           {status === 'connecting' && (
-            <div className="mt-4 flex gap-2">
-              <span className="w-2 h-2 rounded-full bg-[#4F46E5] animate-bounce" style={{ animationDelay: '0ms' }} />
-              <span className="w-2 h-2 rounded-full bg-[#4F46E5] animate-bounce" style={{ animationDelay: '150ms' }} />
-              <span className="w-2 h-2 rounded-full bg-[#4F46E5] animate-bounce" style={{ animationDelay: '300ms' }} />
+            <div className="mt-3 flex gap-2">
+              {[0, 150, 300].map((d) => (
+                <span key={d} className="w-2 h-2 rounded-full bg-[#4F46E5] animate-bounce" style={{ animationDelay: `${d}ms` }} />
+              ))}
             </div>
           )}
-
-          {/* Hang up while waiting */}
           <button
             onClick={hangUp}
-            className="mt-12 w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center transition-all shadow-lg"
+            className="mt-12 w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-lg"
           >
             <PhoneOff className="w-7 h-7 text-white" />
           </button>
@@ -255,7 +258,7 @@ export default function Call() {
       )}
 
       {/* Audio-only avatar when connected */}
-      {status === 'connected' && type === 'audio' && (
+      {status === 'connected' && type === 'audio' && !hasRemote && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-800 z-0">
           <div className="w-28 h-28 rounded-full bg-gradient-to-br from-[#4F46E5] to-[#06B6D4] flex items-center justify-center text-5xl font-bold text-white shadow-xl mb-4">
             {displayName.charAt(0).toUpperCase()}
@@ -267,18 +270,18 @@ export default function Call() {
 
       {status === 'declined' && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 z-10">
-          <p className="text-white text-xl mb-2">{displayName}</p>
-          <p className="text-red-400 text-sm mt-1">Звонок отклонён</p>
+          <p className="text-white text-xl mb-1">{displayName}</p>
+          <p className="text-red-400 text-sm">Звонок отклонён</p>
         </div>
       )}
 
-      {/* Controls bar — always shown (above or over content) */}
+      {/* Controls */}
       <div className="absolute bottom-0 left-0 right-0 pb-10 pt-6 bg-gradient-to-t from-black/70 to-transparent z-30">
         <div className="flex items-center justify-center gap-6">
           <button
             onClick={toggleMute}
             className={`w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-md ${
-              muted ? 'bg-red-500 hover:bg-red-600' : 'bg-white/20 hover:bg-white/30'
+              muted ? 'bg-red-500' : 'bg-white/20 hover:bg-white/30'
             }`}
           >
             {muted ? <MicOff className="w-6 h-6 text-white" /> : <Mic className="w-6 h-6 text-white" />}
@@ -286,7 +289,7 @@ export default function Call() {
 
           <button
             onClick={hangUp}
-            className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center transition-all shadow-lg"
+            className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-lg"
           >
             <PhoneOff className="w-7 h-7 text-white" />
           </button>
@@ -295,7 +298,7 @@ export default function Call() {
             <button
               onClick={toggleVideo}
               className={`w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-md ${
-                videoOff ? 'bg-red-500 hover:bg-red-600' : 'bg-white/20 hover:bg-white/30'
+                videoOff ? 'bg-red-500' : 'bg-white/20 hover:bg-white/30'
               }`}
             >
               {videoOff ? <VideoOff className="w-6 h-6 text-white" /> : <Video className="w-6 h-6 text-white" />}
@@ -304,14 +307,13 @@ export default function Call() {
             <button
               onClick={toggleSpeaker}
               className={`w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-md ${
-                speakerOn ? 'bg-white/20 hover:bg-white/30' : 'bg-red-500 hover:bg-red-600'
+                speakerOn ? 'bg-white/20 hover:bg-white/30' : 'bg-red-500'
               }`}
             >
               {speakerOn ? <Volume2 className="w-6 h-6 text-white" /> : <VolumeX className="w-6 h-6 text-white" />}
             </button>
           )}
         </div>
-
         <div className="flex items-center justify-center gap-6 mt-2">
           <span className="w-14 text-center text-xs text-white/50">{muted ? 'Выкл' : 'Микрофон'}</span>
           <span className="w-16 text-center text-xs text-white/50">Завершить</span>
