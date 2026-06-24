@@ -32,6 +32,7 @@ export default function Call() {
   const [speakerOn,   setSpeakerOn]   = useState(true);
   const [hasRemote,   setHasRemote]   = useState(false);
   const [sharing,     setSharing]     = useState(false);
+  const [shareError,  setShareError]  = useState('');
   const screenStreamRef = useRef<MediaStream | null>(null);
 
   const displayName = isCaller ? receiverName : (callData?.callerName || 'User');
@@ -181,36 +182,49 @@ export default function Call() {
 
   const hangUp = () => leaveCall(true);
 
-  const toggleShare = async () => {
+  const stopSharing = async () => {
     const pc = pcRef.current;
-    if (!pc) return;
+    screenStreamRef.current?.getTracks().forEach((t) => t.stop());
+    screenStreamRef.current = null;
+    const camTrack = localStreamRef.current?.getVideoTracks()[0];
+    if (pc && camTrack) {
+      const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
+      await sender?.replaceTrack(camTrack);
+      if (localVideoRef.current) localVideoRef.current.srcObject = localStreamRef.current;
+    }
+    setSharing(false);
+  };
 
-    if (sharing) {
-      // Stop sharing — restore camera track
-      screenStreamRef.current?.getTracks().forEach((t) => t.stop());
-      screenStreamRef.current = null;
-      const camTrack = localStreamRef.current?.getVideoTracks()[0];
-      if (camTrack) {
-        const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
-        sender?.replaceTrack(camTrack);
-        if (localVideoRef.current) localVideoRef.current.srcObject = localStreamRef.current;
-      }
-      setSharing(false);
-    } else {
-      try {
-        const screen = await (navigator.mediaDevices as any).getDisplayMedia({ video: true, audio: false });
-        screenStreamRef.current = screen;
-        const screenTrack = screen.getVideoTracks()[0];
+  const toggleShare = async () => {
+    if (sharing) { stopSharing(); return; }
+
+    if (!(navigator.mediaDevices as any).getDisplayMedia) {
+      setShareError('Ваш браузер не поддерживает демонстрацию экрана');
+      setTimeout(() => setShareError(''), 3000);
+      return;
+    }
+
+    try {
+      const screen: MediaStream = await (navigator.mediaDevices as any).getDisplayMedia({ video: true, audio: true });
+      screenStreamRef.current = screen;
+      const screenTrack = screen.getVideoTracks()[0];
+      const pc = pcRef.current;
+      if (pc) {
         const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
         if (sender) {
           await sender.replaceTrack(screenTrack);
         } else {
           pc.addTrack(screenTrack, screen);
         }
-        if (localVideoRef.current) localVideoRef.current.srcObject = screen;
-        screenTrack.onended = () => toggleShare(); // user stopped via browser UI
-        setSharing(true);
-      } catch { /* user cancelled */ }
+      }
+      if (localVideoRef.current) localVideoRef.current.srcObject = screen;
+      screenTrack.onended = () => stopSharing();
+      setSharing(true);
+    } catch (err: any) {
+      if (err?.name !== 'NotAllowedError') {
+        setShareError('Не удалось начать демонстрацию экрана');
+        setTimeout(() => setShareError(''), 3000);
+      }
     }
   };
 
@@ -308,6 +322,13 @@ export default function Call() {
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 z-10">
           <p className="text-white text-xl mb-1">{displayName}</p>
           <p className="text-red-400 text-sm">Звонок отклонён</p>
+        </div>
+      )}
+
+      {/* Error toast */}
+      {shareError && (
+        <div className="absolute top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-sm px-4 py-2 rounded-xl z-50 shadow-lg">
+          {shareError}
         </div>
       )}
 
