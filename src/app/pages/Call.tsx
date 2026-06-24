@@ -9,7 +9,7 @@ import {
   listenCall,
   CallDoc,
 } from '../../lib/callSignaling';
-import { createOffer, createAnswer, cleanupCallData } from '../../lib/webrtcCall';
+import { createPC, setupCallerSignaling, setupReceiverSignaling, cleanupCallData } from '../../lib/webrtcCall';
 
 export default function Call() {
   const navigate = useNavigate();
@@ -98,12 +98,17 @@ export default function Call() {
         localVideoRef.current.srcObject = stream;
       }
 
-      const pc = isCaller
-        ? await createOffer(id)
-        : await createAnswer(id);
+      const pc = createPC();
       pcRef.current = pc;
 
+      // Tracks MUST be added before creating offer/answer
       stream.getTracks().forEach((t) => pc.addTrack(t, stream));
+
+      if (isCaller) {
+        await setupCallerSignaling(pc, id);
+      } else {
+        await setupReceiverSignaling(pc, id);
+      }
 
       pc.ontrack = (e) => {
         if (remoteVideoRef.current) {
