@@ -1,0 +1,12 @@
+node_modules
+.env
+.env.local
+.playwright-cli
+android
+ios
+linux
+macos
+windows
+flutter_app
+lib
+test
