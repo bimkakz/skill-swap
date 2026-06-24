@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { PhoneOff, Mic, MicOff, Video, VideoOff, Volume2, VolumeX, Phone } from 'lucide-react';
+import { PhoneOff, Mic, MicOff, Video, VideoOff, Volume2, VolumeX } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import {
   initiateCall,
@@ -23,6 +23,7 @@ export default function Call() {
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const startedRef = useRef(false);
@@ -111,9 +112,17 @@ export default function Call() {
       }
 
       pc.ontrack = (e) => {
+        const stream = e.streams[0];
+        // Attach to video element for video calls
         if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = e.streams[0];
+          remoteVideoRef.current.srcObject = stream;
+          remoteVideoRef.current.play().catch(() => {});
           setHasRemoteVideo(true);
+        }
+        // Always attach audio separately to ensure it plays
+        if (remoteAudioRef.current) {
+          remoteAudioRef.current.srcObject = stream;
+          remoteAudioRef.current.play().catch(() => {});
         }
       };
 
@@ -168,6 +177,9 @@ export default function Call() {
 
   return (
     <div className="fixed inset-0 bg-gray-900 flex flex-col">
+      {/* Hidden audio element — ensures remote audio plays even on audio-only calls */}
+      <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
+
       {/* Remote video (full screen) */}
       <video
         ref={remoteVideoRef}
