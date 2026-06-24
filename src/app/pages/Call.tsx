@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { PhoneOff, Mic, MicOff, Video, VideoOff, Volume2, VolumeX } from 'lucide-react';
+import { PhoneOff, Mic, MicOff, Video, VideoOff, Volume2, VolumeX, MonitorUp, MonitorOff } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { initiateCall, acceptCall, endCall, listenCall, CallDoc } from '../../lib/callSignaling';
 import { createPC, setupCallerSignaling, setupReceiverSignaling, cleanupCallData } from '../../lib/webrtcCall';
@@ -27,10 +27,12 @@ export default function Call() {
   const [callId,   setCallId]   = useState('');
   const [callData, setCallData] = useState<CallDoc | null>(null);
   const [status,   setStatus]   = useState<'calling'|'connecting'|'connected'|'declined'>('calling');
-  const [muted,      setMuted]      = useState(false);
-  const [videoOff,   setVideoOff]   = useState(false);
-  const [speakerOn,  setSpeakerOn]  = useState(true);
-  const [hasRemote,  setHasRemote]  = useState(false);
+  const [muted,       setMuted]       = useState(false);
+  const [videoOff,    setVideoOff]    = useState(false);
+  const [speakerOn,   setSpeakerOn]   = useState(true);
+  const [hasRemote,   setHasRemote]   = useState(false);
+  const [sharing,     setSharing]     = useState(false);
+  const screenStreamRef = useRef<MediaStream | null>(null);
 
   const displayName = isCaller ? receiverName : (callData?.callerName || 'User');
 
@@ -164,6 +166,7 @@ export default function Call() {
     hangingUpRef.current = true;
 
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
+    screenStreamRef.current?.getTracks().forEach((t) => t.stop());
     pcRef.current?.close();
     pcRef.current = null;
 
@@ -177,6 +180,39 @@ export default function Call() {
   }
 
   const hangUp = () => leaveCall(true);
+
+  const toggleShare = async () => {
+    const pc = pcRef.current;
+    if (!pc) return;
+
+    if (sharing) {
+      // Stop sharing — restore camera track
+      screenStreamRef.current?.getTracks().forEach((t) => t.stop());
+      screenStreamRef.current = null;
+      const camTrack = localStreamRef.current?.getVideoTracks()[0];
+      if (camTrack) {
+        const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
+        sender?.replaceTrack(camTrack);
+        if (localVideoRef.current) localVideoRef.current.srcObject = localStreamRef.current;
+      }
+      setSharing(false);
+    } else {
+      try {
+        const screen = await (navigator.mediaDevices as any).getDisplayMedia({ video: true, audio: false });
+        screenStreamRef.current = screen;
+        const screenTrack = screen.getVideoTracks()[0];
+        const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
+        if (sender) {
+          await sender.replaceTrack(screenTrack);
+        } else {
+          pc.addTrack(screenTrack, screen);
+        }
+        if (localVideoRef.current) localVideoRef.current.srcObject = screen;
+        screenTrack.onended = () => toggleShare(); // user stopped via browser UI
+        setSharing(true);
+      } catch { /* user cancelled */ }
+    }
+  };
 
   const toggleMute = () => {
     localStreamRef.current?.getAudioTracks().forEach((t) => { t.enabled = muted; });
@@ -275,53 +311,72 @@ export default function Call() {
         </div>
       )}
 
-      {/* Controls */}
-      <div className="absolute bottom-0 left-0 right-0 pb-10 pt-6 bg-gradient-to-t from-black/70 to-transparent z-30">
-        <div className="flex items-center justify-center gap-6">
-          <button
-            onClick={toggleMute}
-            className={`w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-md ${
-              muted ? 'bg-red-500' : 'bg-white/20 hover:bg-white/30'
-            }`}
-          >
-            {muted ? <MicOff className="w-6 h-6 text-white" /> : <Mic className="w-6 h-6 text-white" />}
-          </button>
+      {/* Controls — only when connected */}
+      {status === 'connected' && (
+        <div className="absolute bottom-0 left-0 right-0 pb-10 pt-6 bg-gradient-to-t from-black/70 to-transparent z-30">
+          <div className="flex items-center justify-center gap-4">
+            <div className="flex flex-col items-center gap-1">
+              <button
+                onClick={toggleMute}
+                className={`w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-md ${
+                  muted ? 'bg-red-500' : 'bg-white/20 hover:bg-white/30'
+                }`}
+              >
+                {muted ? <MicOff className="w-6 h-6 text-white" /> : <Mic className="w-6 h-6 text-white" />}
+              </button>
+              <span className="text-xs text-white/50">{muted ? 'Выкл' : 'Микрофон'}</span>
+            </div>
 
-          <button
-            onClick={hangUp}
-            className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-lg"
-          >
-            <PhoneOff className="w-7 h-7 text-white" />
-          </button>
+            <div className="flex flex-col items-center gap-1">
+              <button
+                onClick={hangUp}
+                className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-lg"
+              >
+                <PhoneOff className="w-7 h-7 text-white" />
+              </button>
+              <span className="text-xs text-white/50">Завершить</span>
+            </div>
 
-          {type === 'video' ? (
-            <button
-              onClick={toggleVideo}
-              className={`w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-md ${
-                videoOff ? 'bg-red-500' : 'bg-white/20 hover:bg-white/30'
-              }`}
-            >
-              {videoOff ? <VideoOff className="w-6 h-6 text-white" /> : <Video className="w-6 h-6 text-white" />}
-            </button>
-          ) : (
-            <button
-              onClick={toggleSpeaker}
-              className={`w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-md ${
-                speakerOn ? 'bg-white/20 hover:bg-white/30' : 'bg-red-500'
-              }`}
-            >
-              {speakerOn ? <Volume2 className="w-6 h-6 text-white" /> : <VolumeX className="w-6 h-6 text-white" />}
-            </button>
-          )}
+            {type === 'video' ? (
+              <div className="flex flex-col items-center gap-1">
+                <button
+                  onClick={toggleVideo}
+                  className={`w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-md ${
+                    videoOff ? 'bg-red-500' : 'bg-white/20 hover:bg-white/30'
+                  }`}
+                >
+                  {videoOff ? <VideoOff className="w-6 h-6 text-white" /> : <Video className="w-6 h-6 text-white" />}
+                </button>
+                <span className="text-xs text-white/50">{videoOff ? 'Камера выкл' : 'Камера'}</span>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-1">
+                <button
+                  onClick={toggleSpeaker}
+                  className={`w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-md ${
+                    speakerOn ? 'bg-white/20 hover:bg-white/30' : 'bg-red-500'
+                  }`}
+                >
+                  {speakerOn ? <Volume2 className="w-6 h-6 text-white" /> : <VolumeX className="w-6 h-6 text-white" />}
+                </button>
+                <span className="text-xs text-white/50">{speakerOn ? 'Динамик' : 'Выкл'}</span>
+              </div>
+            )}
+
+            <div className="flex flex-col items-center gap-1">
+              <button
+                onClick={toggleShare}
+                className={`w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-md ${
+                  sharing ? 'bg-[#4F46E5]' : 'bg-white/20 hover:bg-white/30'
+                }`}
+              >
+                {sharing ? <MonitorOff className="w-6 h-6 text-white" /> : <MonitorUp className="w-6 h-6 text-white" />}
+              </button>
+              <span className="text-xs text-white/50">{sharing ? 'Стоп' : 'Экран'}</span>
+            </div>
+          </div>
         </div>
-        <div className="flex items-center justify-center gap-6 mt-2">
-          <span className="w-14 text-center text-xs text-white/50">{muted ? 'Выкл' : 'Микрофон'}</span>
-          <span className="w-16 text-center text-xs text-white/50">Завершить</span>
-          <span className="w-14 text-center text-xs text-white/50">
-            {type === 'video' ? (videoOff ? 'Камера выкл' : 'Камера') : (speakerOn ? 'Динамик' : 'Выкл')}
-          </span>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
