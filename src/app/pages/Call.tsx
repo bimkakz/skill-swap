@@ -79,21 +79,37 @@ export default function Call() {
     return unsub;
   }, [callId, currentUser]);
 
-  // 30s timeout for unanswered outgoing calls
+  // 30s timeout for unanswered outgoing calls — cancelled once WebRTC starts
+  const noAnswerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!isCaller || !callId) return;
-    const t = setTimeout(() => endCall(callId).then(() => navigate(-1)), 30000);
-    return () => clearTimeout(t);
+    noAnswerTimerRef.current = setTimeout(() => {
+      if (!startedRef.current) {
+        endCall(callId).then(() => navigate(-1));
+      }
+    }, 30000);
+    return () => {
+      if (noAnswerTimerRef.current) clearTimeout(noAnswerTimerRef.current);
+    };
   }, [callId]);
 
   async function startWebRTC(id: string) {
     setStatus('connecting');
     try {
-      const constraints = type === 'video'
-        ? { audio: true, video: { facingMode: 'user' } }
-        : { audio: true, video: false };
-
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      // Try with ideal constraints first, fall back to basic if browser rejects
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+          video: type === 'video' ? { facingMode: { ideal: 'user' } } : false,
+        });
+      } catch {
+        // Fallback: just ask for audio/video without extra constraints
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+          video: type === 'video',
+        });
+      }
       localStreamRef.current = stream;
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
@@ -101,6 +117,20 @@ export default function Call() {
 
       const pc = createPC();
       pcRef.current = pc;
+
+      // ontrack MUST be set before signaling so we don't miss early track events
+      pc.ontrack = (e) => {
+        const remoteStream = e.streams[0];
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = remoteStream;
+          remoteVideoRef.current.play().catch(() => {});
+          setHasRemoteVideo(true);
+        }
+        if (remoteAudioRef.current) {
+          remoteAudioRef.current.srcObject = remoteStream;
+          remoteAudioRef.current.play().catch(() => {});
+        }
+      };
 
       // Tracks MUST be added before creating offer/answer
       stream.getTracks().forEach((t) => pc.addTrack(t, stream));
@@ -110,21 +140,6 @@ export default function Call() {
       } else {
         await setupReceiverSignaling(pc, id);
       }
-
-      pc.ontrack = (e) => {
-        const stream = e.streams[0];
-        // Attach to video element for video calls
-        if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = stream;
-          remoteVideoRef.current.play().catch(() => {});
-          setHasRemoteVideo(true);
-        }
-        // Always attach audio separately to ensure it plays
-        if (remoteAudioRef.current) {
-          remoteAudioRef.current.srcObject = stream;
-          remoteAudioRef.current.play().catch(() => {});
-        }
-      };
 
       pc.onconnectionstatechange = () => {
         if (pc.connectionState === 'connected') setStatus('connected');
