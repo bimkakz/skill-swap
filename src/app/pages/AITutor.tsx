@@ -1,7 +1,15 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Send, Sparkles, BookOpen, HelpCircle, FileQuestion, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { BottomNav } from '../components/BottomNav';
+
+const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY as string;
+const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+
+const SYSTEM_PROMPT = `You are an AI tutor on the SkillSwap platform — a place where people exchange skills with each other.
+Your goal is to help users learn any topic they're interested in. Be concise, friendly, and encouraging.
+When asked to "Start Lesson", suggest a learning path. When asked to "Explain Topic", ask what topic to explain.
+When asked to "Generate Quiz", create a short 3-question quiz on a topic of the user's choice.`;
 
 const quickActions = [
   { icon: BookOpen, label: 'Start Lesson', color: '#06B6D4' },
@@ -9,46 +17,64 @@ const quickActions = [
   { icon: FileQuestion, label: 'Generate Quiz', color: '#06B6D4' },
 ];
 
-const sampleMessages = [
+type Message = { type: 'ai' | 'user'; text: string };
+
+const initialMessages: Message[] = [
   { type: 'ai', text: "Hi! I'm your AI tutor. I'm here to help you learn anything you'd like. What would you like to explore today?" },
 ];
 
+async function fetchGroqResponse(history: Message[]): Promise<string> {
+  const groqMessages = history.map((m) => ({
+    role: m.type === 'user' ? 'user' : 'assistant',
+    content: m.text,
+  }));
+
+  const res = await fetch(GROQ_API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${GROQ_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: 'llama-3.3-70b-versatile',
+      messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...groqMessages],
+      max_tokens: 512,
+    }),
+  });
+
+  if (!res.ok) throw new Error(`Groq error: ${res.status}`);
+  const data = await res.json();
+  return data.choices[0].message.content as string;
+}
+
 export default function AITutor() {
   const navigate = useNavigate();
-  const [messages, setMessages] = useState(sampleMessages);
+  const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
-  const handleSend = () => {
-    if (input.trim()) {
-      setMessages([...messages, { type: 'user', text: input }]);
-      setInput('');
-      
-      // Simulate AI response
-      setTimeout(() => {
-        setMessages((prev) => [
-          ...prev,
-          {
-            type: 'ai',
-            text: "That's a great question! Let me help you understand that better. I can create a personalized lesson plan for you.",
-          },
-        ]);
-      }, 1000);
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, loading]);
+
+  const sendMessage = async (text: string) => {
+    const updated: Message[] = [...messages, { type: 'user', text }];
+    setMessages(updated);
+    setInput('');
+    setLoading(true);
+    try {
+      const reply = await fetchGroqResponse(updated);
+      setMessages((prev) => [...prev, { type: 'ai', text: reply }]);
+    } catch {
+      setMessages((prev) => [...prev, { type: 'ai', text: 'Sorry, something went wrong. Please try again.' }]);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleQuickAction = (label: string) => {
-    setMessages([...messages, { type: 'user', text: label }]);
-    
-    setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        {
-          type: 'ai',
-          text: `I'd be happy to help with "${label}". What topic would you like to focus on?`,
-        },
-      ]);
-    }, 1000);
-  };
+  const handleSend = () => { if (input.trim() && !loading) sendMessage(input.trim()); };
+  const handleQuickAction = (label: string) => { if (!loading) sendMessage(label); };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#06B6D4]/5 to-white pb-20">
@@ -116,7 +142,23 @@ export default function AITutor() {
             </div>
           ))}
 
-          {messages.length === 1 && (
+          {loading && (
+            <div className="flex justify-start">
+              <div className="bg-white rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm border border-[#06B6D4]/10">
+                <div className="flex items-center gap-2 mb-1">
+                  <Sparkles className="w-4 h-4 text-[#06B6D4]" />
+                  <span className="text-xs text-[#06B6D4]">AI Tutor</span>
+                </div>
+                <div className="flex gap-1 items-center h-5">
+                  <span className="w-2 h-2 rounded-full bg-[#06B6D4] animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="w-2 h-2 rounded-full bg-[#06B6D4] animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="w-2 h-2 rounded-full bg-[#06B6D4] animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {messages.length === 1 && !loading && (
             <div className="text-center py-8">
               <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-[#06B6D4]/20 to-[#0891B2]/20 mb-4">
                 <Sparkles className="w-10 h-10 text-[#06B6D4]" />
@@ -127,6 +169,8 @@ export default function AITutor() {
               </p>
             </div>
           )}
+
+          <div ref={bottomRef} />
         </div>
 
         {/* Input Area */}
@@ -142,7 +186,7 @@ export default function AITutor() {
             />
             <button
               onClick={handleSend}
-              disabled={!input.trim()}
+              disabled={!input.trim() || loading}
               className="w-12 h-12 rounded-full bg-gradient-to-br from-[#06B6D4] to-[#0891B2] flex items-center justify-center hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Send className="w-5 h-5 text-white" />

@@ -6,6 +6,7 @@ import AITutor from './pages/AITutor';
 import SkillExchange from './pages/SkillExchange';
 import PaidLesson from './pages/PaidLesson';
 import Chat from './pages/Chat';
+import Call from './pages/Call';
 import Profile from './pages/Profile';
 import Messages from './pages/Messages';
 import Explore from './pages/Explore';
@@ -45,6 +46,10 @@ export const router = createBrowserRouter([
   {
     path: '/chat',
     Component: Chat,
+  },
+  {
+    path: '/call',
+    Component: Call,
   },
   {
     path: '/profile',

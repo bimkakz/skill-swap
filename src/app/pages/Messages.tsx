@@ -1,57 +1,49 @@
+import { useEffect, useState } from 'react';
 import { Search, MessageCircle } from 'lucide-react';
 import { useNavigate } from 'react-router';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
+import { useAuth } from '../../lib/AuthContext';
 import { BottomNav } from '../components/BottomNav';
-import { ImageWithFallback } from '../components/figma/ImageWithFallback';
 
-const conversations = [
-  {
-    id: 1,
-    user: {
-      name: 'Maria Garcia',
-      image: 'https://images.unsplash.com/photo-1770564512654-35be546ed257?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx5b3VuZyUyMHdvbWFuJTIwc21pbGluZyUyMGNhc3VhbHxlbnwxfHx8fDE3NzEzODg1MDJ8MA&ixlib=rb-4.1.0&q=80&w=1080',
-    },
-    lastMessage: "Great! Let's start next week then.",
-    time: '2m ago',
-    unread: 2,
-    online: true,
-  },
-  {
-    id: 2,
-    user: {
-      name: 'David Kim',
-      image: 'https://images.unsplash.com/photo-1764816657425-b3c79b616d14?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtYW4lMjBjYXN1YWwlMjBwb3J0cmFpdCUyMGZyaWVuZGx5fGVufDF8fHx8MTc3MTM2MzM4M3ww&ixlib=rb-4.1.0&q=80&w=1080',
-    },
-    lastMessage: 'Thanks for the piano lesson!',
-    time: '1h ago',
-    unread: 0,
-    online: false,
-  },
-  {
-    id: 3,
-    user: {
-      name: 'Sophie Laurent',
-      image: 'https://images.unsplash.com/photo-1623594675959-02360202d4d6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3b21hbiUyMHNtaWxpbmclMjBwb3J0cmFpdCUyMHByb2Zlc3Npb25hbHxlbnwxfHx8fDE3NzEzMjkyOTJ8MA&ixlib=rb-4.1.0&q=80&w=1080',
-    },
-    lastMessage: 'Can we reschedule to tomorrow?',
-    time: '3h ago',
-    unread: 1,
-    online: true,
-  },
-  {
-    id: 4,
-    user: {
-      name: 'Alex Morgan',
-      image: 'https://images.unsplash.com/photo-1680721698104-5fff20073eee?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtYW4lMjBwb3J0cmFpdCUyMGZyaWVuZGx5JTIweW91bmd8ZW58MXx8fHwxNzcxMzg4NDU1fDA&ixlib=rb-4.1.0&q=80&w=1080',
-    },
-    lastMessage: 'The guitar lesson was amazing!',
-    time: '2d ago',
-    unread: 0,
-    online: false,
-  },
-];
+interface FirebaseUser {
+  id: string;
+  name: string;
+  photoUrl?: string;
+  teaching_skills?: string[];
+}
 
 export default function Messages() {
   const navigate = useNavigate();
+  const { user: currentUser, loading: authLoading } = useAuth();
+  const [users, setUsers] = useState<FirebaseUser[]>([]);
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!currentUser) { navigate('/login'); return; }
+
+    getDocs(collection(db, 'users'))
+      .then((snap) => {
+        const list: FirebaseUser[] = snap.docs
+          .filter((doc) => doc.id !== currentUser.uid)
+          .map((doc) => ({
+            id: doc.id,
+            name: doc.data().name || doc.data().displayName || 'Unknown',
+            photoUrl: doc.data().photoUrl || doc.data().photoURL,
+            teaching_skills: doc.data().teaching_skills || [],
+          }));
+        setUsers(list);
+      })
+      .catch(() => setError('Не удалось загрузить пользователей'))
+      .finally(() => setLoading(false));
+  }, [currentUser, authLoading]);
+
+  const filtered = users.filter((u) =>
+    u.name.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
@@ -59,81 +51,82 @@ export default function Messages() {
         {/* Header */}
         <div className="bg-white px-6 pt-12 pb-6 rounded-b-3xl shadow-sm">
           <h1 className="text-2xl text-gray-900 mb-6">Messages</h1>
-
-          {/* Search Bar */}
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
               placeholder="Search conversations..."
               className="w-full pl-12 pr-4 py-3 bg-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/20"
             />
           </div>
         </div>
 
-        {/* Conversations List */}
         <div className="px-6 mt-6 space-y-3">
-          {conversations.map((conversation) => (
+          {loading && (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="bg-white rounded-2xl p-4 shadow-sm animate-pulse">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-full bg-gray-200" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 bg-gray-200 rounded w-1/3" />
+                      <div className="h-3 bg-gray-100 rounded w-2/3" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {error && (
+            <div className="text-center py-6 text-red-500 text-sm">{error}</div>
+          )}
+
+          {!loading && !error && filtered.map((user) => (
             <div
-              key={conversation.id}
-              onClick={() => navigate('/chat')}
+              key={user.id}
+              onClick={() => navigate(`/chat?userId=${user.id}&userName=${encodeURIComponent(user.name)}`)}
               className="bg-white rounded-2xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer"
             >
               <div className="flex items-center gap-4">
-                <div className="relative flex-shrink-0">
-                  <div className="w-14 h-14 rounded-full overflow-hidden bg-gray-200">
-                    <ImageWithFallback
-                      src={conversation.user.image}
-                      alt={conversation.user.name}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  {conversation.online && (
-                    <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
+                <div className="w-14 h-14 rounded-full overflow-hidden bg-gradient-to-br from-[#4F46E5] to-[#06B6D4] flex items-center justify-center flex-shrink-0">
+                  {user.photoUrl ? (
+                    <img src={user.photoUrl} alt={user.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-white text-xl font-semibold">
+                      {user.name.charAt(0).toUpperCase()}
+                    </span>
                   )}
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-gray-900 truncate">{conversation.user.name}</h3>
-                    <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
-                      {conversation.time}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-gray-600 truncate flex-1">
-                      {conversation.lastMessage}
+                  <h3 className="text-gray-900 truncate">{user.name}</h3>
+                  {user.teaching_skills && user.teaching_skills.length > 0 && (
+                    <p className="text-sm text-gray-500 truncate">
+                      Teaches: {user.teaching_skills.slice(0, 2).join(', ')}
                     </p>
-                    {conversation.unread > 0 && (
-                      <div className="w-5 h-5 rounded-full bg-[#4F46E5] flex items-center justify-center flex-shrink-0 ml-2">
-                        <span className="text-xs text-white">{conversation.unread}</span>
-                      </div>
-                    )}
-                  </div>
+                  )}
                 </div>
               </div>
             </div>
           ))}
-        </div>
 
-        {/* Empty State (if no messages) */}
-        {conversations.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-20 px-6">
-            <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-              <MessageCircle className="w-10 h-10 text-gray-400" />
+          {!loading && !error && filtered.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-20 px-6">
+              <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+                <MessageCircle className="w-10 h-10 text-gray-400" />
+              </div>
+              <h3 className="text-gray-900 mb-2">
+                {search ? 'Пользователи не найдены' : 'Нет пользователей'}
+              </h3>
+              <p className="text-gray-600 text-sm text-center">
+                {search ? 'Попробуй другой запрос' : 'Зарегистрированные пользователи появятся здесь'}
+              </p>
             </div>
-            <h3 className="text-gray-900 mb-2">No messages yet</h3>
-            <p className="text-gray-600 text-sm text-center mb-6">
-              Start connecting with teachers and learners to begin your journey!
-            </p>
-            <button
-              onClick={() => navigate('/home')}
-              className="px-6 py-3 bg-[#4F46E5] text-white rounded-2xl hover:bg-[#4338CA] transition-colors"
-            >
-              Explore SkillSwap
-            </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       <BottomNav />
