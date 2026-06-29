@@ -7,13 +7,8 @@ export function BottomNav() {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-gray-200/50">
-      {/* Home Indicator (iPhone gesture bar) */}
-      <div className="max-w-md mx-auto pt-2 pb-1 flex justify-center">
-        <div className="w-32 h-1 bg-gray-900 rounded-full opacity-40"></div>
-      </div>
-      
-      <div className="max-w-md mx-auto flex justify-around items-center pb-2 px-4">
+    <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-gray-200/80 shadow-lg z-40">
+      <div className="max-w-md mx-auto flex justify-around items-center py-2 px-4">
         <Link
           to="/home"
           className={`flex flex-col items-center justify-center flex-1 transition-colors py-2 ${isActive('/home') ? 'text-[#4F46E5]' : 'text-gray-500'}`}

@@ -109,13 +109,13 @@ export default function Chat() {
 
             <div className="flex items-center gap-2">
               <button
-                onClick={() => navigate(`/call?type=audio&user=${encodeURIComponent(receiverName)}&room=skillswap-${receiverId}`)}
+                onClick={() => navigate(`/call?type=audio&userId=${receiverId}&userName=${encodeURIComponent(receiverName)}`)}
                 className="w-10 h-10 rounded-full hover:bg-gray-100 flex items-center justify-center transition-colors"
               >
                 <Phone className="w-5 h-5 text-gray-700" />
               </button>
               <button
-                onClick={() => navigate(`/call?type=video&user=${encodeURIComponent(receiverName)}&room=skillswap-${receiverId}`)}
+                onClick={() => navigate(`/call?type=video&userId=${receiverId}&userName=${encodeURIComponent(receiverName)}`)}
                 className="w-10 h-10 rounded-full hover:bg-gray-100 flex items-center justify-center transition-colors"
               >
                 <Video className="w-5 h-5 text-gray-700" />

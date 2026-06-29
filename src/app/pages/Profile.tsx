@@ -1,32 +1,54 @@
 import { Settings, Star, Repeat, GraduationCap, Award, Edit, ChevronRight, LogOut, Coins, TrendingUp, TrendingDown } from 'lucide-react';
 import { useNavigate } from 'react-router';
+import { useEffect, useState } from 'react';
+import { doc, getDoc } from 'firebase/firestore';
+import { signOut } from 'firebase/auth';
+import { auth, db } from '../../lib/firebase';
+import { useAuth } from '../../lib/AuthContext';
 import { BottomNav } from '../components/BottomNav';
 import { PointsBalance } from '../components/PointsBalance';
 
+interface UserProfile {
+  name: string;
+  photoUrl?: string;
+  teaching_skills: string[];
+  learning_skills: string[];
+  createdAt?: { toDate?: () => Date } | Date | string;
+}
+
 export default function Profile() {
   const navigate = useNavigate();
+  const { user: authUser } = useAuth();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
 
-  const user = {
-    name: 'Alex Johnson',
-    email: 'alex.johnson@email.com',
-    memberSince: 'February 2026',
-    rating: 4.9,
-    skillsOffering: ['Web Development', 'React', 'UI/UX Design'],
-    skillsLearning: ['Spanish', 'Guitar', 'Photography'],
-  };
+  useEffect(() => {
+    if (!authUser) return;
+    getDoc(doc(db, 'users', authUser.uid)).then((snap) => {
+      if (snap.exists()) setProfile(snap.data() as UserProfile);
+    });
+  }, [authUser]);
+
+  const displayName = profile?.name || authUser?.displayName || authUser?.email?.split('@')[0] || 'User';
+  const displayEmail = authUser?.email || '';
+  const initials = displayName.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2);
+
+  const memberSince = (() => {
+    const raw = profile?.createdAt || authUser?.metadata?.creationTime;
+    if (!raw) return '';
+    const date = typeof raw === 'object' && 'toDate' in raw && raw.toDate ? raw.toDate() : new Date(raw as string);
+    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  })();
+
+  const skillsOffering = profile?.teaching_skills ?? [];
+  const skillsLearning = profile?.learning_skills ?? [];
 
   const stats = [
-    { label: 'Exchanges', value: 12, icon: Repeat, color: '#4F46E5' },
-    { label: 'Lessons Taken', value: 8, icon: GraduationCap, color: '#22C55E' },
-    { label: 'Rating', value: '4.9', icon: Star, color: '#EAB308' },
+    { label: 'Exchanges', value: 0, icon: Repeat, color: '#4F46E5' },
+    { label: 'Lessons Taken', value: 0, icon: GraduationCap, color: '#22C55E' },
+    { label: 'Rating', value: '—', icon: Star, color: '#EAB308' },
   ];
 
-  const pointsHistory = [
-    { id: 1, type: 'earned', amount: 100, description: 'Taught React to Maria', date: '2 hours ago' },
-    { id: 2, type: 'spent', amount: 50, description: 'Learned Japanese from Sarah', date: 'Yesterday' },
-    { id: 3, type: 'earned', amount: 75, description: 'Taught UI/UX to James', date: '2 days ago' },
-    { id: 4, type: 'bonus', amount: 50, description: 'Welcome bonus', date: '1 week ago' },
-  ];
+  const pointsHistory: { id: number; type: string; amount: number; description: string; date: string }[] = [];
 
   const menuItems = [
     { label: 'Edit Profile', icon: Edit, action: () => {} },
@@ -48,12 +70,14 @@ export default function Profile() {
           </div>
 
           <div className="flex flex-col items-center text-center">
-            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-white to-gray-100 flex items-center justify-center text-4xl text-[#4F46E5] shadow-xl mb-4">
-              AJ
+            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-white to-gray-100 flex items-center justify-center text-4xl text-[#4F46E5] shadow-xl mb-4 overflow-hidden">
+              {profile?.photoUrl || authUser?.photoURL
+                ? <img src={profile?.photoUrl || authUser?.photoURL || ''} alt={displayName} className="w-full h-full object-cover" />
+                : initials}
             </div>
-            <h1 className="text-white text-2xl mb-1">{user.name}</h1>
-            <p className="text-white/80 text-sm mb-2">{user.email}</p>
-            <p className="text-white/70 text-xs">Member since {user.memberSince}</p>
+            <h1 className="text-white text-2xl mb-1">{displayName}</h1>
+            <p className="text-white/80 text-sm mb-2">{displayEmail}</p>
+            {memberSince && <p className="text-white/70 text-xs">Member since {memberSince}</p>}
           </div>
         </div>
 
@@ -92,7 +116,7 @@ export default function Profile() {
             </p>
 
             {/* Points History */}
-            <div className="space-y-3">
+            {pointsHistory.length > 0 && <div className="space-y-3">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-700 font-medium">Recent Activity</span>
                 <button className="text-[#4F46E5]">View All</button>
@@ -135,7 +159,7 @@ export default function Profile() {
                   </div>
                 </div>
               ))}
-            </div>
+            </div>}
           </div>
         </div>
 
@@ -154,7 +178,7 @@ export default function Profile() {
                 <span className="text-sm text-gray-600">Teaching</span>
               </div>
               <div className="flex flex-wrap gap-2">
-                {user.skillsOffering.map((skill, index) => (
+                {skillsOffering.map((skill, index) => (
                   <span
                     key={index}
                     className="px-3 py-1.5 bg-green-50 text-green-700 rounded-full text-sm border border-green-200"
@@ -175,7 +199,7 @@ export default function Profile() {
                 <span className="text-sm text-gray-600">Learning</span>
               </div>
               <div className="flex flex-wrap gap-2">
-                {user.skillsLearning.map((skill, index) => (
+                {skillsLearning.map((skill, index) => (
                   <span
                     key={index}
                     className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full text-sm border border-blue-200"
@@ -213,7 +237,7 @@ export default function Profile() {
         {/* Logout Button */}
         <div className="px-6 mb-8">
           <button
-            onClick={() => navigate('/login')}
+            onClick={() => signOut(auth).then(() => navigate('/login'))}
             className="w-full px-5 py-4 bg-white rounded-2xl shadow-sm flex items-center justify-center gap-3 text-red-600 hover:bg-red-50 transition-colors"
           >
             <LogOut className="w-5 h-5" />
